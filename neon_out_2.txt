@@ -1,0 +1,32 @@
+node.exe : INFO: Awaiting authentication in web browser.
+At line:1 char:1
++ & "C:\Program Files\nodejs/node.exe" 
+"C:\Users\shubh\AppData\Roaming\ ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~
+    + CategoryInfo          : NotSpecified: (INFO: Awaiting .. 
+   .in web browser.:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+INFO: Auth Url: https://oauth2.neon.tech/oauth2/auth?scope=open
+id+offline+offline_access+urn%3Aneoncloud%3Aprojects%3Acreate+u
+rn%3Aneoncloud%3Aprojects%3Aread+urn%3Aneoncloud%3Aprojects%3Au
+pdate+urn%3Aneoncloud%3Aprojects%3Adelete+urn%3Aneoncloud%3Aorg
+s%3Acreate+urn%3Aneoncloud%3Aorgs%3Aread+urn%3Aneoncloud%3Aorgs
+%3Aupdate+urn%3Aneoncloud%3Aorgs%3Adelete+urn%3Aneoncloud%3Aorg
+s%3Apermission&state=bswbLyWVJfJX9fGlGZ6m5xY-_hNp2_ESenREQpXYAS
+s&code_challenge=GeCXqrGo14W_Gzxi_Fv12RrRrH4i7n1oKYbk_MGBTcs&co
+de_challenge_method=S256&redirect_uri=http%3A%2F%2F127.0.0.1%3A
+55726%2Fcallback&client_id=neonctl&response_type=code
+INFO: Auth complete
+[90m???[39m  Adding Neon to your project
+[?25l[90m???[39m
+[36m???[39m  Which editor(s) would you like to configure? (Space to toggle each option, Enter to confirm your selection)
+[36m???[39m
+[36m???[39m
+[999D[4A[1B[J[31m???[39m  Which editor(s) would you like to configure? (Space to toggle each option, Enter to confirm your selection)
+[90m???[39m  [9m[2mVS Code[22m[29m
+[90m???[39m
+[?25h[90m???[39m
+[90m???[39m  Installation cancelled
+

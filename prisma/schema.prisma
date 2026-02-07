@@ -1,0 +1,90 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String         @id @default(cuid())
+  email         String?        @unique
+  name          String?
+  progress      UserProgress[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+}
+
+model Classroom {
+  id          String     @id @default(cuid())
+  name        String
+  subject     String
+  materials   Material[]
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+}
+
+model Material {
+  id          String      @id @default(cuid())
+  title       String
+  pdfUrl      String
+  rawText     String      @db.Text
+  classroomId String
+  classroom   Classroom   @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  smartNotes  SmartNote[]
+  mcqs        MCQ[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+model SmartNote {
+  id              String   @id @default(cuid())
+  materialId      String
+  material        Material @relation(fields: [materialId], references: [id], onDelete: Cascade)
+  topic           String
+  subtopic        String?
+  content         String   @db.Text
+  examRelevance   String   // "SSC", "UPSC", or "BOTH"
+  importance      Int      // 1-5 rating
+  memoryTechnique Json     // { type, technique, explanation }
+  examTips        String?  @db.Text
+  commonMistakes  String?  @db.Text
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([materialId, examRelevance])
+  @@index([materialId, importance])
+}
+
+model MCQ {
+  id             String         @id @default(cuid())
+  materialId     String
+  material       Material       @relation(fields: [materialId], references: [id], onDelete: Cascade)
+  question       String         @db.Text
+  options        String[]       // Array of 4 options
+  answer         String         // The correct option
+  explanation    String         @db.Text
+  level          String         @default("Medium") // Easy, Medium, Hard
+  pyqContext     String?        @db.Text           // e.g., "Mirroring SSC CGL 2024 style"
+  examRelevance  String?        // "SSC", "UPSC", or "BOTH"
+  importance     Int?           // 1-5 rating from source note
+  sourceNote     String?        @db.Text           // Which topic/concept this is based on
+  progress       UserProgress[]
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@index([materialId, examRelevance])
+  @@index([materialId, importance])
+}
+
+model UserProgress {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mcqId       String
+  mcq         MCQ      @relation(fields: [mcqId], references: [id], onDelete: Cascade)
+  isCorrect   Boolean
+  attemptDate DateTime @default(now())
+}
+
