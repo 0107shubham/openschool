@@ -57,7 +57,8 @@ CRITICAL RULES:
 2. STRUCTURE: Every MCQ must have "question", "options" (4), and "answer".
 3. VALIDITY: "answer" MUST match one option exactly. No nulls.
 4. LANGUAGE: Questions/Options: English. Explanations: Hinglish.
-5. ZERO DATA LOSS: Cover ALL significant notes. Generate ${count} questions.
+5. FULL COVERAGE: You MUST generate at least one MCQ for EVERY single note provided. Do not skip any note.
+6. VOLUME: Generate approximately ${count} questions to ensure exhaustive coverage of all concepts.
 
 JSON RULES:
 - Return ONLY a valid JSON object.

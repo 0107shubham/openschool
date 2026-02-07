@@ -1,21 +1,42 @@
 import OpenAI from "openai";
 import { SMART_NOTES_PROMPT, MCQ_FROM_NOTES_PROMPT } from "./prompts";
 
+// Providers
+export type AIProvider = "OpenRouter" | "NVIDIA";
+
 // OpenRouter Supported Models
 export const SUPPORTED_MODELS = [
-  { id: "google/gemini-2.0-flash-001", name: "Gemini 2.0 Flash", description: "Ultra-fast, massive context", provider: "Google" },
-  { id: "qwen/qwen-2.5-72b-instruct", name: "Qwen 2.5 72B", description: "Excellent instruction following", provider: "Alibaba" },
-  { id: "liquid/lfm-2.5-1.2b-thinking:free", name: "Liquid LFM 2.5 (Free)", description: "Reasoning model", provider: "LiquidAI" },
-  { id: "google/gemma-3-27b-it:free", name: "Gemma 3 27B (Free)", description: "Google's latest open model", provider: "Google" },
-  { id: "mistralai/mistral-small-3.1-24b-instruct:free", name: "Mistral Small 3.1 (Free)", description: "Balanced performance", provider: "Mistral" },
-  { id: "z-ai/glm-4.5-air:free", name: "GLM 4.5 Air (Free)", description: "High-speed reasoning", provider: "Z.AI" },
-  { id: "openai/gpt-oss-120b:free", name: "GPT-OSS 120B (Free)", description: "Large scale open model", provider: "OpenAI" },
-  { id: "nvidia/nemotron-3-nano-30b-a3b:free", name: "NVIDIA Nemotron 3 Nano (Free)", description: "Small but powerful agentic MoE", provider: "NVIDIA" },
+  // OpenRouter Models
+  { id: "google/gemini-2.0-flash-001", name: "Gemini 2.0 Flash", description: "Ultra-fast, massive context", provider: "OpenRouter" as AIProvider },
+  { id: "qwen/qwen-2.5-72b-instruct", name: "Qwen 2.5 72B", description: "Excellent instruction following", provider: "OpenRouter" as AIProvider },
+  { id: "liquid/lfm-2.5-1.2b-thinking:free", name: "Liquid LFM 2.5 (Free)", description: "Reasoning model", provider: "OpenRouter" as AIProvider },
+  { id: "google/gemma-3-27b-it:free", name: "Gemma 3 27B (Free)", description: "Google's latest open model", provider: "OpenRouter" as AIProvider },
+  { id: "mistralai/mistral-small-3.1-24b-instruct:free", name: "Mistral Small 3.1 (Free)", description: "Balanced performance", provider: "OpenRouter" as AIProvider },
+  { id: "z-ai/glm-4.5-air:free", name: "GLM 4.5 Air (Free)", description: "High-speed reasoning", provider: "OpenRouter" as AIProvider },
+  { id: "openai/gpt-oss-120b:free", name: "GPT-OSS 120B (Free)", description: "Large scale open model", provider: "OpenRouter" as AIProvider },
+  { id: "nvidia/nemotron-3-nano-30b-a3b:free", name: "NVIDIA Nemotron 3 Nano (Free)", description: "Small but powerful agentic MoE", provider: "OpenRouter" as AIProvider },
+  
+  // NVIDIA Integrations
+  { id: "moonshotai/kimi-k2.5", name: "Kimi k2.5 (Thinking)", description: "Moonshot's reasoning model", provider: "NVIDIA" as AIProvider },
+  { id: "qwen/qwen3-next-80b-a3b-thinking", name: "Qwen 3 Next 80B (Thinking)", description: "Qwen's latest reasoning model", provider: "NVIDIA" as AIProvider },
+  { id: "nvidia/nemotron-3-nano-30b-a3b", name: "Nemotron 3 Nano (Thinking)", description: "NVIDIA's fast reasoning model", provider: "NVIDIA" as AIProvider },
+  { id: "deepseek-ai/deepseek-v3.1", name: "DeepSeek v3.1 (Thinking)", description: "DeepSeek's high-performance reasoning", provider: "NVIDIA" as AIProvider },
 ];
 
 const DEFAULT_MODEL = "google/gemini-2.0-flash-001";
 
-const getAIClient = (apiKey?: string) => {
+const getAIClient = (modelId: string, apiKey?: string) => {
+  // Check if the model is an NVIDIA model
+  const model = SUPPORTED_MODELS.find(m => m.id === modelId);
+  const provider = model?.provider || "OpenRouter";
+
+  if (provider === "NVIDIA") {
+    return new OpenAI({
+      apiKey: process.env.NVIDIA_API_KEY || apiKey,
+      baseURL: "https://integrate.api.nvidia.com/v1",
+    });
+  }
+
   return new OpenAI({
     apiKey: apiKey || process.env.OPENROUTER_API_KEY_1,
     baseURL: "https://openrouter.ai/api/v1",
@@ -148,7 +169,7 @@ function chunkText(text: string, maxLength: number = 4000): string[] {
  * Generate comprehensive smart notes with memory techniques from raw text
  */
 export async function generateSmartNotes(text: string, modelId: string = DEFAULT_MODEL, apiKey?: string) {
-  const openai = getAIClient(apiKey);
+  const openai = getAIClient(modelId, apiKey);
   try {
     const chunks = chunkText(text);
     const allNotes: any[] = [];
@@ -166,6 +187,23 @@ export async function generateSmartNotes(text: string, modelId: string = DEFAULT
       console.log(`Generating notes for chunk ${i + 1}/${chunks.length}...`);
       const prompt = SMART_NOTES_PROMPT(chunks[i]);
 
+      // Add thinking param for NVIDIA Kimi, Qwen3, Nemotron, or DeepSeek
+      const isThinkingModel = modelId === "moonshotai/kimi-k2.5" || 
+                             modelId === "qwen/qwen3-next-80b-a3b-thinking" || 
+                             modelId === "nvidia/nemotron-3-nano-30b-a3b" ||
+                             modelId === "deepseek-ai/deepseek-v3.1";
+                             
+      let extraParams: any = {};
+      
+      if (modelId === "moonshotai/kimi-k2.5" || modelId === "qwen/qwen3-next-80b-a3b-thinking" || modelId === "deepseek-ai/deepseek-v3.1") {
+        extraParams = { chat_template_kwargs: { thinking: true } };
+      } else if (modelId === "nvidia/nemotron-3-nano-30b-a3b") {
+        extraParams = { 
+          reasoning_budget: 16384,
+          chat_template_kwargs: { enable_thinking: true } 
+        };
+      }
+
       const response = await openai.chat.completions.create({
         model: modelId,
         messages: [
@@ -178,8 +216,10 @@ export async function generateSmartNotes(text: string, modelId: string = DEFAULT
         // Disable JSON mode for free models as many don't support it
         ...(modelId.endsWith(':free') ? {} : { response_format: { type: "json_object" } }),
         temperature: 0.5,
-        max_tokens: modelId.endsWith(':free') ? 8000 : 4000, 
-      });
+        // Use higher tokens for reasoning models
+        max_tokens: modelId.endsWith(':free') ? 8000 : (isThinkingModel || modelId.includes('kimi') ? 16384 : 4000),
+        ...extraParams
+      } as any);
 
       const content = response.choices[0].message.content;
       if (!content) continue;
@@ -239,7 +279,7 @@ export async function generateSmartNotes(text: string, modelId: string = DEFAULT
  * Generate MCQs from smart notes (ensures 100% accuracy to source material)
  */
 export async function generateMCQsFromNotes(notes: any, style: string, level: string, count: number = 20, modelId: string = DEFAULT_MODEL, apiKey?: string) {
-  const openai = getAIClient(apiKey);
+  const openai = getAIClient(modelId, apiKey);
   try {
     // Use the count requested by user or default to 20
     const mcqCount = count;
@@ -247,6 +287,23 @@ export async function generateMCQsFromNotes(notes: any, style: string, level: st
     const prompt = MCQ_FROM_NOTES_PROMPT(notesText, style, level, mcqCount);
 
     console.log(`Generating ${mcqCount} MCQs from notes...`);
+
+    // Add thinking param for NVIDIA Kimi, Qwen3, Nemotron, or DeepSeek
+    const isThinkingModel = modelId === "moonshotai/kimi-k2.5" || 
+                           modelId === "qwen/qwen3-next-80b-a3b-thinking" || 
+                           modelId === "nvidia/nemotron-3-nano-30b-a3b" ||
+                           modelId === "deepseek-ai/deepseek-v3.1";
+                           
+    let extraParams: any = {};
+    
+    if (modelId === "moonshotai/kimi-k2.5" || modelId === "qwen/qwen3-next-80b-a3b-thinking" || modelId === "deepseek-ai/deepseek-v3.1") {
+      extraParams = { chat_template_kwargs: { thinking: true } };
+    } else if (modelId === "nvidia/nemotron-3-nano-30b-a3b") {
+      extraParams = { 
+        reasoning_budget: 16384,
+        chat_template_kwargs: { enable_thinking: true } 
+      };
+    }
 
     const response = await openai.chat.completions.create({
       model: modelId,
@@ -258,11 +315,12 @@ export async function generateMCQsFromNotes(notes: any, style: string, level: st
         { role: "user", content: prompt },
       ],
       // Disable JSON mode for free models as many don't support it
-      // Also disable it if we're expecting a top-level array which some JSON modes don't like
       ...(modelId.endsWith(':free') ? {} : { response_format: { type: "json_object" } }),
       temperature: 0.7,
-      max_tokens: modelId.endsWith(':free') ? 8000 : 4000, 
-    });
+      // Use higher tokens for reasoning models
+      max_tokens: modelId.endsWith(':free') ? 8000 : (isThinkingModel || modelId.includes('kimi') ? 16384 : 4000),
+      ...extraParams
+    } as any);
 
     const content = response.choices[0].message.content;
     if (!content) throw new Error("No content received from AI");
