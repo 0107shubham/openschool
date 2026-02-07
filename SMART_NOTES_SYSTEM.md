@@ -125,9 +125,7 @@ CREATE INDEX ON "MCQ"(materialId, importance);
   - Great at structured JSON output
 
 ### API Key Setup
-```env
-OPENROUTER_API_KEY="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"
-```
+
 
 ## 🎓 Memory Techniques Used
 
