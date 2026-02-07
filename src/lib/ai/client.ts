@@ -140,7 +140,7 @@ export async function generateSmartNotes(text: string, modelId: string = DEFAULT
         ],
         response_format: { type: "json_object" },
         temperature: 0.5,
-        max_tokens: 8000, 
+        max_tokens: 3000, 
       });
 
       const content = response.choices[0].message.content;
@@ -209,7 +209,7 @@ export async function generateMCQsFromNotes(notes: any, style: string, level: st
       ],
       response_format: { type: "json_object" },
       temperature: 0.7,
-      max_tokens: 8000, // Increased for more MCQs
+      max_tokens: 4000, // Reduced from 8000 to avoid credit issues
     });
 
     const content = response.choices[0].message.content;
