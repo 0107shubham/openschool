@@ -5,18 +5,26 @@ import { SMART_NOTES_PROMPT, MCQ_FROM_NOTES_PROMPT } from "./prompts";
 export const SUPPORTED_MODELS = [
   { id: "google/gemini-2.0-flash-001", name: "Gemini 2.0 Flash", description: "Ultra-fast, massive context", provider: "Google" },
   { id: "qwen/qwen-2.5-72b-instruct", name: "Qwen 2.5 72B", description: "Excellent instruction following", provider: "Alibaba" },
+  { id: "liquid/lfm-2.5-1.2b-thinking:free", name: "Liquid LFM 2.5 (Free)", description: "Reasoning model", provider: "LiquidAI" },
+  { id: "google/gemma-3-27b-it:free", name: "Gemma 3 27B (Free)", description: "Google's latest open model", provider: "Google" },
+  { id: "mistralai/mistral-small-3.1-24b-instruct:free", name: "Mistral Small 3.1 (Free)", description: "Balanced performance", provider: "Mistral" },
+  { id: "z-ai/glm-4.5-air:free", name: "GLM 4.5 Air (Free)", description: "High-speed reasoning", provider: "Z.AI" },
+  { id: "openai/gpt-oss-120b:free", name: "GPT-OSS 120B (Free)", description: "Large scale open model", provider: "OpenAI" },
+  { id: "nvidia/nemotron-3-nano-30b-a3b:free", name: "NVIDIA Nemotron 3 Nano (Free)", description: "Small but powerful agentic MoE", provider: "NVIDIA" },
 ];
 
 const DEFAULT_MODEL = "google/gemini-2.0-flash-001";
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENROUTER_API_KEY,
-  baseURL: "https://openrouter.ai/api/v1",
-  defaultHeaders: {
-    "HTTP-Referer": process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
-    "X-Title": "OpenSchool AI",
-  },
-});
+const getAIClient = (apiKey?: string) => {
+  return new OpenAI({
+    apiKey: apiKey || process.env.OPENROUTER_API_KEY_1,
+    baseURL: "https://openrouter.ai/api/v1",
+    defaultHeaders: {
+      "HTTP-Referer": process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
+      "X-Title": "OpenSchool AI",
+    },
+  });
+};
 
 /**
  * Clean AI response - strip markdown code blocks and handle potentially malformed JSON
@@ -24,13 +32,34 @@ const openai = new OpenAI({
 function cleanJsonResponse(content: string): string {
   let cleaned = content.trim();
   
-  // Remove markdown code blocks if present
+  // 1. Try to find markdown code blocks
   const jsonMatch = cleaned.match(/```json\s*([\s\S]*?)\s*```/) || 
                     cleaned.match(/```\s*([\s\S]*?)\s*```/);
   
   if (jsonMatch) {
-    cleaned = jsonMatch[1];
-  } else if (cleaned.startsWith("```")) {
+    return jsonMatch[1].trim();
+  }
+
+  // 2. If no backticks, try to find the first '{' or '[' and the last '}' or ']'
+  const firstBrace = cleaned.indexOf('{');
+  const firstBracket = cleaned.indexOf('[');
+  let start = -1;
+  let end = -1;
+
+  if (firstBrace !== -1 && (firstBracket === -1 || firstBrace < firstBracket)) {
+    start = firstBrace;
+    end = cleaned.lastIndexOf('}');
+  } else if (firstBracket !== -1) {
+    start = firstBracket;
+    end = cleaned.lastIndexOf(']');
+  }
+
+  if (start !== -1 && end !== -1 && end > start) {
+    return cleaned.slice(start, end + 1).trim();
+  }
+  
+  // 3. Last resort: just strip backticks if they are at the very start/end
+  if (cleaned.startsWith("```")) {
     cleaned = cleaned.replace(/^```[a-z]*\n?/, "").replace(/\n?```$/, "");
   }
   
@@ -70,9 +99,14 @@ function repairJson(json: string): string {
 
   // 3. Close everything in reverse order
   while (stack.length > 0) {
-    repaired += stack.pop();
+    const closing = stack.pop();
+    // Use regex to remove trailing comma if present (handling spaces/newlines)
+    repaired = repaired.replace(/,\s*$/, "");
+    repaired += closing;
   }
 
+  // 4. Final check: if it doesn't end with } or ], something is very wrong
+  // But we'll try to return what we have.
   return repaired;
 }
 
@@ -111,7 +145,8 @@ function chunkText(text: string, maxLength: number = 6000): string[] {
 /**
  * Generate comprehensive smart notes with memory techniques from raw text
  */
-export async function generateSmartNotes(text: string, modelId: string = DEFAULT_MODEL) {
+export async function generateSmartNotes(text: string, modelId: string = DEFAULT_MODEL, apiKey?: string) {
+  const openai = getAIClient(apiKey);
   try {
     const chunks = chunkText(text);
     const allNotes: any[] = [];
@@ -138,9 +173,10 @@ export async function generateSmartNotes(text: string, modelId: string = DEFAULT
           },
           { role: "user", content: prompt },
         ],
-        response_format: { type: "json_object" },
+        // Disable JSON mode for free models as many don't support it
+        ...(modelId.endsWith(':free') ? {} : { response_format: { type: "json_object" } }),
         temperature: 0.5,
-        max_tokens: 3000, 
+        max_tokens: modelId.endsWith(':free') ? 8000 : 2000, 
       });
 
       const content = response.choices[0].message.content;
@@ -153,19 +189,30 @@ export async function generateSmartNotes(text: string, modelId: string = DEFAULT
         parsed = JSON.parse(cleanedContent);
       } catch (e) {
         console.warn("JSON Parse failed, attempting repair...");
+        const repaired = repairJson(cleanedContent);
         try {
-          parsed = JSON.parse(repairJson(cleanedContent));
+          parsed = JSON.parse(repaired);
         } catch (repairError) {
-          console.error("JSON Repair failed. Skipping this chunk's full parse.");
+          console.error("JSON Repair failed. RAW CONTENT FROM AI:");
+          console.log("------------------------------------------");
+          console.log(content);
+          console.log("------------------------------------------");
           continue;
         }
       }
 
-      if (parsed.notes) {
-        allNotes.push(...parsed.notes);
+      if (parsed) {
+        if (parsed.notes) {
+          allNotes.push(...parsed.notes);
+        } else if (Array.isArray(parsed)) {
+          // If the AI returned just an array of notes
+          allNotes.push(...parsed);
+        } else {
+          console.warn("Parsed JSON does not contain 'notes' array:", parsed);
+        }
       }
       
-      if (parsed.summary) {
+      if (parsed?.summary) {
         summary.totalConcepts += parsed.summary.totalConcepts || 0;
         summary.sscRelevant += parsed.summary.sscRelevant || 0;
         summary.upscRelevant += parsed.summary.upscRelevant || 0;
@@ -189,7 +236,8 @@ export async function generateSmartNotes(text: string, modelId: string = DEFAULT
 /**
  * Generate MCQs from smart notes (ensures 100% accuracy to source material)
  */
-export async function generateMCQsFromNotes(notes: any, style: string, level: string, count: number = 20, modelId: string = DEFAULT_MODEL) {
+export async function generateMCQsFromNotes(notes: any, style: string, level: string, count: number = 20, modelId: string = DEFAULT_MODEL, apiKey?: string) {
+  const openai = getAIClient(apiKey);
   try {
     // Use the count requested by user or default to 20
     const mcqCount = count;
@@ -207,29 +255,38 @@ export async function generateMCQsFromNotes(notes: any, style: string, level: st
           },
         { role: "user", content: prompt },
       ],
-      response_format: { type: "json_object" },
+      // Disable JSON mode for free models as many don't support it
+      ...(modelId.endsWith(':free') ? {} : { response_format: { type: "json_object" } }),
       temperature: 0.7,
-      max_tokens: 4000, // Reduced from 8000 to avoid credit issues
+      max_tokens: modelId.endsWith(':free') ? 8000 : 2000, 
     });
 
     const content = response.choices[0].message.content;
     if (!content) throw new Error("No content received from AI");
 
     const cleanedContent = cleanJsonResponse(content);
+    let parsed;
     try {
-      const parsed = JSON.parse(cleanedContent);
-      return Array.isArray(parsed) ? parsed : (parsed.questions || parsed.mcqs || parsed.questions_list || []);
+      parsed = JSON.parse(cleanedContent);
     } catch (parseError) {
       console.warn("MCQ JSON Parse failed, attempting repair...");
       try {
         const repaired = repairJson(cleanedContent);
-        const parsed = JSON.parse(repaired);
-        return Array.isArray(parsed) ? parsed : (parsed.questions || parsed.mcqs || parsed.questions_list || []);
+        parsed = JSON.parse(repaired);
       } catch (repairError) {
-        console.error("MCQ JSON Repair failed.");
+        console.error("MCQ JSON Repair failed. RAW CONTENT FROM AI:");
+        console.log("------------------------------------------");
+        console.log(content);
+        console.log("------------------------------------------");
         throw parseError;
       }
     }
+
+    if (Array.isArray(parsed)) return parsed;
+    if (parsed) {
+      return parsed.questions || parsed.mcqs || parsed.questions_list || parsed.notes || [];
+    }
+    return [];
   } catch (error) {
     console.error("MCQ Generation Error:", error);
     throw error;

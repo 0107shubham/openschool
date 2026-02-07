@@ -60,6 +60,7 @@ export default function ClassroomPage() {
   const [isExtracting, setIsExtracting] = useState(false);
   const [pageSelection, setPageSelection] = useState("1-5");
   const [selectedModel, setSelectedModel] = useState("google/gemini-2.0-flash-001");
+  const [selectedAccount, setSelectedAccount] = useState(1);
   
   // Notes Modal State
   const [notesModalOpen, setNotesModalOpen] = useState(false);
@@ -222,9 +223,10 @@ export default function ClassroomPage() {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ 
-              materialId: data.id,
-              modelId: selectedModel 
-            })
+              materialId: data.id, 
+              modelId: selectedModel,
+              accountIndex: selectedAccount 
+            }),
           });
           
           const mcqData = await mcqRes.json();
@@ -421,10 +423,32 @@ export default function ClassroomPage() {
                 <select 
                   value={selectedModel}
                   onChange={(e) => setSelectedModel(e.target.value)}
-                  className="w-full rounded-xl border border-white/10 bg-white/5 p-3 text-white focus:border-indigo-500 focus:outline-none appearance-none cursor-pointer"
+                  className="w-full rounded-xl border border-white/10 bg-white/5 p-3 text-black font-bold focus:border-indigo-500 focus:outline-none appearance-none cursor-pointer"
                 >
+                  {/* Map through supported models from client.ts if possible, or list them here */}
                   <option value="google/gemini-2.0-flash-001">Gemini 2.0 Flash (Fastest)</option>
                   <option value="qwen/qwen-2.5-72b-instruct">Qwen 2.5 72B (Instructions)</option>
+                  <option value="liquid/lfm-2.5-1.2b-thinking:free">Liquid LFM 2.5 (Thinking - FREE)</option>
+                  <option value="google/gemma-3-27b-it:free">Gemma 3 27B (FREE)</option>
+                  <option value="mistralai/mistral-small-3.1-24b-instruct:free">Mistral Small 3.1 (FREE)</option>
+                  <option value="z-ai/glm-4.5-air:free">GLM 4.5 Air (FREE)</option>
+                  <option value="openai/gpt-oss-120b:free">GPT-OSS 120B (FREE)</option>
+                  <option value="nvidia/nemotron-3-nano-30b-a3b:free">NVIDIA Nemotron 3 (FREE)</option>
+                </select>
+            </div>
+
+            <div className="space-y-2">
+                <label className="text-xs font-bold text-white/60 uppercase flex items-center gap-2">
+                  <Sparkles className="h-3 w-3" />
+                  AI Account (Credits Source)
+                </label>
+                <select 
+                  value={selectedAccount}
+                  onChange={(e) => setSelectedAccount(Number(e.target.value))}
+                  className="w-full rounded-xl border border-white/10 bg-white/5 p-3 text-black font-bold focus:border-indigo-500 focus:outline-none appearance-none cursor-pointer"
+                >
+                  <option value={1}>OpenRouter Account 1 (Primary)</option>
+                  <option value={2}>OpenRouter Account 2 (Secondary)</option>
                 </select>
             </div>
 

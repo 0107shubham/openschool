@@ -4,7 +4,9 @@ import { generateSmartNotes, generateMCQsFromNotes } from "@/lib/ai/client";
 
 export async function POST(req: Request) {
   try {
-    const { materialId, level = "Medium", style = "SSC CGL 2024", modelId } = await req.json();
+    const { materialId, level = "Medium", style = "SSC CGL 2024", modelId, accountIndex = 1 } = await req.json();
+
+    const apiKey = accountIndex === 2 ? process.env.OPENROUTER_API_KEY_2 : process.env.OPENROUTER_API_KEY_1;
 
     if (!materialId) {
       return NextResponse.json({ error: "Material ID is required" }, { status: 400 });
@@ -24,7 +26,7 @@ export async function POST(req: Request) {
 
     // 2. Generate Smart Notes with memory techniques
     console.log(`Generating smart notes with model: ${modelId || 'default'}...`);
-    const smartNotesData = await generateSmartNotes(material.rawText, modelId);
+    const smartNotesData = await generateSmartNotes(material.rawText, modelId, apiKey);
 
     // 3. Save Smart Notes to database
     const savedNotes = [];
@@ -50,11 +52,17 @@ export async function POST(req: Request) {
 
     // 4. Generate MCQs from Smart Notes (ensures 100% accuracy)
     console.log("Generating MCQs from smart notes...");
-    const mcqs = await generateMCQsFromNotes(smartNotesData, style, level, 20, modelId);
+    const mcqs = await generateMCQsFromNotes(smartNotesData, style, level, 20, modelId, apiKey);
 
     // 5. Save MCQs to database
     const savedMcqs = [];
     for (const mcq of mcqs) {
+      // Defensive check for malformed AI data
+      if (!mcq.question || !mcq.options || !Array.isArray(mcq.options) || !mcq.answer) {
+        console.warn("Skipping malformed MCQ:", mcq);
+        continue;
+      }
+
       const res = await query(
         `INSERT INTO "MCQ" ("materialId", question, options, answer, explanation, level, "pyqContext", "examRelevance", importance, "sourceNote")
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)

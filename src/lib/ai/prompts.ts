@@ -63,17 +63,16 @@ EXAM STYLE: ${style}
 DIFFICULTY LEVEL: ${level}
 NUMBER OF QUESTIONS: ${count}
 
-CRITICAL REQUIREMENTS:
-1. Use ONLY information from the notes below - 100% accuracy is mandatory
-2. For SSC CGL style: Focus on notes tagged [SSC] or [BOTH]
-3. For UPSC style: Focus on notes tagged [UPSC] or [BOTH]
-4. Cover ALL high-importance (4-5 star) concepts
-5. **LANGUAGE RULE**: 
-   - Questions and Options MUST be in **Pure English** (Technical accuracy के लिए).
-   - Explanations MUST be in **Hinglish (Hindi Devanagari + English)**.
-   - **Example Explanation**: "यह concept बहुत simple है: Photosynthesis के दौरान plants sunlight का use करके अपना खाना बनाते हैं।"
-6. Include the memory technique in explanations when relevant
-7. Ensure no fact is missed from high-importance notes
+CRITICAL REQUIREMENTS (MANDATORY):
+1. **STRUCTURE**: Every MCQ MUST include: "question", "options" (4 items), and an "answer".
+2. **VALIDITY**: The "answer" MUST match one of the "options" exactly. DO NOT leave it null.
+3. **SOURCE**: Use ONLY information from the notes below.
+4. **LANGUAGE**: 
+   - Questions & Options: **Pure English**.
+   - Explanations: **Hinglish (Hindi Devanagari + English)**.
+5. Focus on higher importance (4-5 star) concepts from the notes.
+6. Include memory techniques in the explanation field.
+7. For SSC/UPSC style: Prioritize notes with corresponding tags.
 
 JSON STRUCTURE - Return ONLY valid JSON array:
 [
