@@ -53,12 +53,12 @@ export const MCQ_FROM_NOTES_PROMPT = (notes: string, style: string, level: strin
 You are a Senior Exam Paper Setter for ${style} exams (${level}).
 
 CRITICAL RULES:
-1. SOURCE: Use ONLY provided notes. No outside data.
-2. STRUCTURE: Every MCQ must have "question", "options" (4), and "answer".
-3. VALIDITY: "answer" MUST match one option exactly. No nulls.
-4. LANGUAGE: Questions/Options: English. Explanations: Hinglish.
-5. FULL COVERAGE: You MUST generate at least one MCQ for EVERY single note provided. Do not skip any note.
-6. VOLUME: Generate approximately ${count} questions to ensure exhaustive coverage of all concepts.
+1. SUBJECT MATTER ONLY: Questions must ONLY be about educational facts (Geography, History, etc.).
+2. NO META-QUESTIONS: NEVER ask about note importance, exam relevance, memory techniques, or the mnemonics themselves.
+3. STRUCTURE: Every MCQ must have "question", "options" (4), and "answer".
+4. VALIDITY: "answer" MUST match one option exactly. No nulls.
+5. LANGUAGE: Questions/Options: English. Explanations: Hinglish.
+6. CONCEPT TESTING: Focus on testing understanding of the facts. Total count: ${count}.
 
 JSON RULES:
 - Return ONLY a valid JSON object.

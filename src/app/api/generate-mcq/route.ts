@@ -69,7 +69,7 @@ export async function POST(req: Request) {
     }
 
     // 4. Generate MCQs from Smart Notes (ensures 100% accuracy)
-    const mcqRequirement = Math.max(20, Math.ceil(smartNotesData.notes.length * 1.5));
+    const mcqRequirement = Math.max(10, Math.ceil(smartNotesData.notes.length * 1.1));
     console.log(`Generating ${mcqRequirement} MCQs from ${smartNotesData.notes.length} smart notes...`);
     const mcqs = await generateMCQsFromNotes(smartNotesData, style, level, mcqRequirement, modelId, apiKey);
 
