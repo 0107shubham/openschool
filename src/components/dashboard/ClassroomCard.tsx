@@ -32,11 +32,12 @@ export function ClassroomCard({ id, name, subject, materialCount, strength, onDe
           {onDelete && (
             <button 
               onClick={(e) => {
-                e.preventDefault();
                 e.stopPropagation();
+                e.preventDefault();
                 onDelete(e);
               }}
-              className="text-white/20 hover:text-red-400 transition-colors p-1"
+              className="text-white/20 hover:text-red-400 transition-colors p-2 -m-2 relative z-10"
+              title="Delete Classroom"
             >
               <Trash2 className="h-4 w-4" />
             </button>

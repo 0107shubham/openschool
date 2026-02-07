@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { ClassroomCard } from "@/components/dashboard/ClassroomCard";
 import { Modal } from "@/components/ui/Modal";
-import { Plus, LayoutDashboard, Settings, History, HelpCircle, Search, Bell, Loader2 } from "lucide-react";
+import { Plus, LayoutDashboard, Settings, History, HelpCircle, Search, Bell, Loader2, Trash2 } from "lucide-react";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -22,6 +22,9 @@ export default function DashboardPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newClassroom, setNewClassroom] = useState({ name: "", subject: "" });
   const [creating, setCreating] = useState(false);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [classroomToDelete, setClassroomToDelete] = useState<{id: string, name: string} | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -66,16 +69,19 @@ export default function DashboardPage() {
     }
   };
 
-  const handleDeleteClassroom = async (classroomId: string) => {
-    if (!confirm("Are you sure you want to delete this classroom? All materials, notes, and MCQs will be permanently removed.")) return;
+  const handleDeleteClassroom = async () => {
+    if (!classroomToDelete) return;
+    setDeleting(true);
     
     try {
-      const res = await fetch(`/api/classrooms/${classroomId}`, {
+      const res = await fetch(`/api/classrooms/${classroomToDelete.id}`, {
         method: "DELETE",
       });
       
       if (res.ok) {
-        fetchClassrooms();
+        await fetchClassrooms();
+        setDeleteModalOpen(false);
+        setClassroomToDelete(null);
       } else {
         const error = await res.json();
         alert(`Failed to delete: ${error.error}`);
@@ -83,6 +89,8 @@ export default function DashboardPage() {
     } catch (error) {
       console.error("Delete error:", error);
       alert("Failed to delete classroom due to a network error.");
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -160,12 +168,20 @@ export default function DashboardPage() {
           ) : (
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
               {classrooms.map((classroom) => (
-                <Link key={classroom.id} href={`/classroom/${classroom.id}`}>
+                <div 
+                  key={classroom.id} 
+                  onClick={() => router.push(`/classroom/${classroom.id}`)}
+                  className="cursor-pointer"
+                >
                    <ClassroomCard 
                      {...classroom} 
-                     onDelete={() => handleDeleteClassroom(classroom.id)}
+                     onDelete={(e) => {
+                       e.stopPropagation();
+                       setClassroomToDelete({ id: classroom.id, name: classroom.name });
+                       setDeleteModalOpen(true);
+                     }}
                    />
-                </Link>
+                </div>
               ))}
             </div>
           )}
@@ -207,6 +223,48 @@ export default function DashboardPage() {
             {creating ? "Creating..." : "Create Classroom"}
           </button>
         </form>
+      </Modal>
+
+      <Modal
+        isOpen={deleteModalOpen}
+        onClose={() => !deleting && setDeleteModalOpen(false)}
+        title="Confirm Deletion"
+      >
+        <div className="space-y-4">
+          <div className="flex flex-col items-center text-center space-y-2">
+            <div className="h-12 w-12 rounded-full bg-red-500/20 flex items-center justify-center text-red-500 mb-2">
+              <Trash2 className="h-6 w-6" />
+            </div>
+            <h3 className="text-xl font-bold text-white">Delete "{classroomToDelete?.name}"?</h3>
+            <p className="text-white/40 text-sm">
+              This action cannot be undone. All materials, notes, and MCQs in this classroom will be permanently deleted.
+            </p>
+          </div>
+
+          <div className="flex gap-3 pt-4">
+            <button
+              onClick={() => setDeleteModalOpen(false)}
+              disabled={deleting}
+              className="flex-1 rounded-xl border border-white/10 bg-white/5 py-3 font-bold text-white hover:bg-white/10 disabled:opacity-50"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleDeleteClassroom}
+              disabled={deleting}
+              className="flex-1 rounded-xl bg-red-600 py-3 font-bold text-white hover:bg-red-500 disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {deleting ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete"
+              )}
+            </button>
+          </div>
+        </div>
       </Modal>
     </div>
   );
