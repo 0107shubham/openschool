@@ -183,81 +183,85 @@ export async function generateSmartNotes(text: string, modelId: string = DEFAULT
       keyTopics: []
     };
 
-    console.log(`Processing material in ${chunks.length} chunks...`);
+    console.log(`Processing material in ${chunks.length} chunks in parallel...`);
 
-    for (let i = 0; i < chunks.length; i++) {
-      console.log(`Generating notes for chunk ${i + 1}/${chunks.length}...`);
-      const prompt = SMART_NOTES_PROMPT(chunks[i]);
-
-      // Add thinking param for NVIDIA Kimi, Qwen3, Nemotron, or DeepSeek
-      const isThinkingModel = modelId === "moonshotai/kimi-k2.5" || 
-                             modelId === "qwen/qwen3-next-80b-a3b-thinking" || 
-                             modelId === "nvidia/nemotron-3-nano-30b-a3b" ||
-                             modelId === "deepseek-ai/deepseek-v3.1";
-                             
-      let extraParams: any = {};
-      
-      if (modelId === "moonshotai/kimi-k2.5" || modelId === "qwen/qwen3-next-80b-a3b-thinking" || modelId === "deepseek-ai/deepseek-v3.1") {
-        extraParams = { chat_template_kwargs: { thinking: true } };
-      } else if (modelId === "nvidia/nemotron-3-nano-30b-a3b") {
-        extraParams = { 
-          reasoning_budget: 16384,
-          chat_template_kwargs: { enable_thinking: true } 
-        };
-      }
-
-      const response = await openai.chat.completions.create({
-        model: modelId,
-        messages: [
-          { 
-            role: "system", 
-            content: "You are an expert educator. You MUST use a natural mix of Hindi (Devanagari script) and English (Hinglish). Technical terms/dates stay in English, but narrative must be in Hindi. Example: 'Evergreen Forests में साल भर पेड़ हरे-भरे रहते हैं क्योंकि ये अपनी leaves एक साथ नहीं झाड़ते।' Return ONLY valid JSON." 
-          },
-          { role: "user", content: prompt },
-        ],
-        // Disable JSON mode for free models as many don't support it
-        ...(modelId.endsWith(':free') ? {} : { response_format: { type: "json_object" } }),
-        temperature: 0.5,
-        // Use higher tokens for reasoning models
-        max_tokens: modelId.endsWith(':free') ? 8000 : (isThinkingModel || modelId.includes('kimi') ? 16384 : 4000),
-        ...extraParams
-      } as any);
-
-      const content = response.choices[0].message.content;
-      if (!content) continue;
-
-      let cleanedContent = cleanJsonResponse(content);
-      let parsed;
-      
+    const chunkPromises = chunks.map(async (chunk, i) => {
       try {
-        parsed = JSON.parse(cleanedContent);
-      } catch (e) {
-        console.warn("JSON Parse failed, attempting repair...");
-        const repaired = repairJson(cleanedContent);
-        try {
-          parsed = JSON.parse(repaired);
-        } catch (repairError) {
-          console.error("JSON Repair failed. RAW CONTENT FROM AI:");
-          console.log("------------------------------------------");
-          console.log(content);
-          console.log("------------------------------------------");
-          continue;
-        }
-      }
+        console.log(`Starting generation for chunk ${i + 1}/${chunks.length}...`);
+        const prompt = SMART_NOTES_PROMPT(chunk);
 
-      if (parsed) {
-        if (parsed.notes) {
-          allNotes.push(...parsed.notes);
-        } else if (Array.isArray(parsed)) {
-          // If the AI returned just an array of notes
-          allNotes.push(...parsed);
-        } else {
-          console.warn("Parsed JSON does not contain 'notes' array:", parsed);
+        // Add thinking param for NVIDIA Kimi, Qwen3, Nemotron, or DeepSeek
+        const isThinkingModel = modelId === "moonshotai/kimi-k2.5" || 
+                               modelId === "qwen/qwen3-next-80b-a3b-thinking" || 
+                               modelId === "nvidia/nemotron-3-nano-30b-a3b" ||
+                               modelId === "deepseek-ai/deepseek-v3.1";
+                               
+        let extraParams: any = {};
+        
+        if (modelId === "moonshotai/kimi-k2.5" || modelId === "qwen/qwen3-next-80b-a3b-thinking" || modelId === "deepseek-ai/deepseek-v3.1") {
+          extraParams = { chat_template_kwargs: { thinking: true } };
+        } else if (modelId === "nvidia/nemotron-3-nano-30b-a3b") {
+          extraParams = { 
+            reasoning_budget: 16384,
+            chat_template_kwargs: { enable_thinking: true } 
+          };
         }
+
+        const response = await openai.chat.completions.create({
+          model: modelId,
+          messages: [
+            { 
+              role: "system", 
+              content: "You are an expert educator. You MUST use a natural mix of Hindi (Devanagari script) and English (Hinglish). Technical terms/dates stay in English, but narrative must be in Hindi. Example: 'Evergreen Forests में साल भर पेड़ हरे-भरे रहते हैं क्योंकि ये अपनी leaves एक साथ नहीं झाड़ते।' Return ONLY valid JSON." 
+            },
+            { role: "user", content: prompt },
+          ],
+          // Disable JSON mode for free models as many don't support it
+          ...(modelId.endsWith(':free') ? {} : { response_format: { type: "json_object" } }),
+          temperature: 0.5,
+          // Use higher tokens for reasoning models
+          max_tokens: modelId.endsWith(':free') ? 8000 : (isThinkingModel || modelId.includes('kimi') ? 16384 : 4000),
+          ...extraParams
+        } as any);
+
+        const content = response.choices[0].message.content;
+        if (!content) return null;
+
+        let cleanedContent = cleanJsonResponse(content);
+        let parsed;
+        
+        try {
+          parsed = JSON.parse(cleanedContent);
+        } catch (e) {
+          console.warn(`JSON Parse failed for chunk ${i + 1}, attempting repair...`);
+          const repaired = repairJson(cleanedContent);
+          try {
+            parsed = JSON.parse(repaired);
+          } catch (repairError) {
+            console.error(`JSON Repair failed for chunk ${i + 1}.`);
+            return null;
+          }
+        }
+        console.log(`Completed chunk ${i + 1}/${chunks.length}`);
+        return parsed;
+      } catch (err) {
+        console.error(`Error processing chunk ${i + 1}:`, err);
+        return null;
+      }
+    });
+
+    const chunkResults = await Promise.all(chunkPromises);
+
+    for (const parsed of chunkResults) {
+      if (!parsed) continue;
+
+      if (parsed.notes) {
+        allNotes.push(...parsed.notes);
+      } else if (Array.isArray(parsed)) {
+        allNotes.push(...parsed);
       }
       
-      if (parsed?.summary) {
-        summary.totalConcepts += parsed.summary.totalConcepts || 0;
+      if (parsed.summary) {
         summary.sscRelevant += parsed.summary.sscRelevant || 0;
         summary.upscRelevant += parsed.summary.upscRelevant || 0;
         summary.bothRelevant += parsed.summary.bothRelevant || 0;
@@ -266,6 +270,8 @@ export async function generateSmartNotes(text: string, modelId: string = DEFAULT
         }
       }
     }
+
+    summary.totalConcepts = allNotes.length;
 
     return {
       notes: allNotes,

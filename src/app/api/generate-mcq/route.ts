@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
 import { generateSmartNotes, generateMCQsFromNotes, SUPPORTED_MODELS } from "@/lib/ai/client";
 
-export const maxDuration = 60; // Extend timeout for reasoning models
+export const maxDuration = 300; // Extend timeout to 300s (Pro maximum) for reasoning models
 
 export async function POST(req: Request) {
   try {
