@@ -1,12 +1,30 @@
 import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
-import { generateSmartNotes, generateMCQsFromNotes } from "@/lib/ai/client";
+import { generateSmartNotes, generateMCQsFromNotes, SUPPORTED_MODELS } from "@/lib/ai/client";
+
+export const maxDuration = 60; // Extend timeout for reasoning models
 
 export async function POST(req: Request) {
   try {
     const { materialId, level = "Medium", style = "SSC CGL 2024", modelId, accountIndex = 1 } = await req.json();
 
-    const apiKey = accountIndex === 2 ? process.env.OPENROUTER_API_KEY_2 : process.env.OPENROUTER_API_KEY_1;
+    // Determine provider and correct API Key
+    const model = SUPPORTED_MODELS.find(m => m.id === modelId);
+    const provider = model?.provider || "OpenRouter";
+    
+    let apiKey = "";
+    if (provider === "NVIDIA") {
+      apiKey = process.env.NVIDIA_API_KEY || "";
+    } else {
+      apiKey = accountIndex === 2 ? process.env.OPENROUTER_API_KEY_2 || "" : process.env.OPENROUTER_API_KEY_1 || "";
+    }
+
+    if (!apiKey) {
+      console.error(`Missing API Key for provider: ${provider}`);
+      return NextResponse.json({ error: `API Key for ${provider} is not configured in production settings.` }, { status: 401 });
+    }
+
+    console.log(`Using ${provider} API with key starting with: ${apiKey.substring(0, 5)}...`);
 
     if (!materialId) {
       return NextResponse.json({ error: "Material ID is required" }, { status: 400 });

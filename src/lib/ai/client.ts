@@ -31,12 +31,14 @@ const getAIClient = (modelId: string, apiKey?: string) => {
   const provider = model?.provider || "OpenRouter";
 
   if (provider === "NVIDIA") {
+    console.log(`[AI] Initializing NVIDIA client for model: ${modelId}`);
     return new OpenAI({
       apiKey: process.env.NVIDIA_API_KEY || apiKey,
       baseURL: "https://integrate.api.nvidia.com/v1",
     });
   }
 
+  console.log(`[AI] Initializing OpenRouter client for model: ${modelId}`);
   return new OpenAI({
     apiKey: apiKey || process.env.OPENROUTER_API_KEY_1,
     baseURL: "https://openrouter.ai/api/v1",
