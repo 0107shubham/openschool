@@ -63,10 +63,15 @@ export default function ClassroomPage() {
   const [selectedModel, setSelectedModel] = useState("google/gemini-2.0-flash-001");
   const [selectedProviderType, setSelectedProviderType] = useState<AIProvider>("OpenRouter");
   const [selectedAccount, setSelectedAccount] = useState(1);
+  const [generationType, setGenerationType] = useState<"BOTH" | "NOTES" | "MCQS">("BOTH");
   
   // Notes Modal State
   const [notesModalOpen, setNotesModalOpen] = useState(false);
   const [selectedMaterial, setSelectedMaterial] = useState<Material | null>(null);
+  
+  // MCQ Generation Modal State
+  const [mcqModalOpen, setMcqModalOpen] = useState(false);
+  const [materialForMcq, setMaterialForMcq] = useState<Material | null>(null);
   
   // Generation State
   const [generatingFor, setGeneratingFor] = useState<string | null>(null);
@@ -227,7 +232,8 @@ export default function ClassroomPage() {
             body: JSON.stringify({ 
               materialId: data.id, 
               modelId: selectedModel,
-              accountIndex: selectedAccount 
+              accountIndex: selectedAccount,
+              generationType: generationType
             }),
           });
           
@@ -266,6 +272,52 @@ export default function ClassroomPage() {
        alert(error.message); // Simple alert for now
     } finally {
       setUploading(false);
+    }
+  };
+
+  const handleOpenMcqModal = (material: Material) => {
+    setMaterialForMcq(material);
+    setMcqModalOpen(true);
+  };
+
+  const handleGenerateMCQsOnly = async () => {
+    if (!materialForMcq) return;
+    
+    const materialId = materialForMcq.id;
+    setMcqModalOpen(false); // Close modal immediately
+    
+    try {
+      setGeneratingFor(materialId);
+      setGenerationStatus("Generating MCQs from existing notes...");
+      
+      const res = await fetch("/api/generate-mcq", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          materialId: materialId, 
+          modelId: selectedModel,
+          accountIndex: selectedAccount,
+          generationType: "MCQS"
+        }),
+      });
+      
+      const data = await res.json();
+      
+      if (res.ok && data.success) {
+        setGenerationStatus(`✅ Created ${data.mcqs?.count || 0} MCQs!`);
+        setTimeout(() => {
+          setGeneratingFor(null);
+          // Refresh list
+          fetchClassroomData();
+        }, 2000);
+      } else {
+        throw new Error(data.error || "Failed to generate MCQs");
+      }
+    } catch (error: any) {
+      console.error("MCQ Generation Error:", error);
+      setGenerationStatus("❌ Failed to generate MCQs");
+      setTimeout(() => setGeneratingFor(null), 3000);
+      alert(error.message);
     }
   };
 
@@ -345,7 +397,9 @@ export default function ClassroomPage() {
                         setSelectedMaterial(material);
                         setNotesModalOpen(true);
                       }}
+                      onGenerateMCQs={() => handleOpenMcqModal(material)}
                       onDelete={() => handleDeleteMaterial(material.id)}
+                      isGenerating={generatingFor === material.id}
                     />
                   ))
                )}
@@ -435,7 +489,7 @@ export default function ClassroomPage() {
                       setSelectedProviderType("OpenRouter");
                       setSelectedAccount(Number(val));
                       // Switch to first OpenRouter model if current is not OR
-                      const currentModel = SUPPORTED_MODELS.find(m => m.id === selectedModel);
+                      const currentModel = SUPPORTED_MODELS.find(m => m.provider === "OpenRouter");
                       if (currentModel?.provider !== "OpenRouter") {
                         const firstOR = SUPPORTED_MODELS.find(m => m.provider === "OpenRouter");
                         if (firstOR) setSelectedModel(firstOR.id);
@@ -469,6 +523,28 @@ export default function ClassroomPage() {
                     ))
                   }
                 </select>
+            </div>
+
+
+            <div className="space-y-2">
+                <label className="text-xs font-bold text-white/60 uppercase flex items-center gap-2">
+                  <CheckCircle2 className="h-3 w-3" />
+                  What to generate?
+                </label>
+                <select 
+                  value={generationType}
+                  onChange={(e) => setGenerationType(e.target.value as any)}
+                  className="w-full rounded-xl border border-white/10 bg-white/5 p-3 text-black font-bold focus:border-indigo-500 focus:outline-none appearance-none cursor-pointer"
+                >
+                  <option value="BOTH">Smart Notes & MCQs (Best)</option>
+                  <option value="NOTES">Smart Notes Only</option>
+                  <option value="MCQS">MCQs Only</option>
+                </select>
+                <p className="text-[10px] text-white/30">
+                  {generationType === 'NOTES' ? "Fastest - creates high-quality notes for revision." : 
+                   generationType === 'MCQS' ? "Quick - creates quiz questions only." : 
+                   "Complete package for deep learning."}
+                </p>
             </div>
 
             {mode === 'text' ? (
@@ -647,6 +723,87 @@ export default function ClassroomPage() {
           />
         )}
       </Modal>
+
+      {/* MCQ Generation Modal */}
+      <Modal
+        isOpen={mcqModalOpen}
+        onClose={() => setMcqModalOpen(false)}
+        title="Generate MCQs"
+        className="max-w-md"
+      >
+        <div className="space-y-6">
+          <div className="rounded-xl bg-indigo-500/10 border border-indigo-500/20 p-4">
+             <div className="flex items-center gap-3 mb-2">
+               <Sparkles className="h-5 w-5 text-indigo-400" />
+               <h3 className="font-bold text-white">Generate Questions Only</h3>
+             </div>
+             <p className="text-xs text-indigo-200/80">
+               We'll use your <strong>existing notes</strong> to generate new MCQs. 
+               This saves time and ensures accuracy.
+             </p>
+          </div>
+
+          <div className="space-y-2">
+              <label className="text-xs font-bold text-white/60 uppercase flex items-center gap-2">
+                <Sparkles className="h-3 w-3" />
+                AI Provider (Account)
+              </label>
+              <select 
+                value={selectedProviderType === "OpenRouter" ? selectedAccount : "NVIDIA"}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val === "NVIDIA") {
+                    setSelectedProviderType("NVIDIA");
+                    const firstNvidia = SUPPORTED_MODELS.find(m => m.provider === "NVIDIA");
+                    if (firstNvidia) setSelectedModel(firstNvidia.id);
+                  } else {
+                    setSelectedProviderType("OpenRouter");
+                    setSelectedAccount(Number(val));
+                    const currentModel = SUPPORTED_MODELS.find(m => m.id === selectedModel);
+                    if (currentModel?.provider !== "OpenRouter") {
+                      const firstOR = SUPPORTED_MODELS.find(m => m.provider === "OpenRouter");
+                      if (firstOR) setSelectedModel(firstOR.id);
+                    }
+                  }
+                }}
+                className="w-full rounded-xl border border-white/10 bg-white/5 p-3 text-black font-bold focus:border-indigo-500 focus:outline-none appearance-none cursor-pointer"
+              >
+                <option value={1}>OpenRouter Account 1</option>
+                <option value={2}>OpenRouter Account 2</option>
+                <option value="NVIDIA">NVIDIA (Moonshot)</option>
+              </select>
+          </div>
+
+          <div className="space-y-2">
+              <label className="text-xs font-bold text-white/60 uppercase flex items-center gap-2">
+                <Brain className="h-3 w-3" />
+                Select AI Brain (Intelligence)
+              </label>
+              <select 
+                value={selectedModel}
+                onChange={(e) => setSelectedModel(e.target.value)}
+                className="w-full rounded-xl border border-white/10 bg-white/5 p-3 text-black font-bold focus:border-indigo-500 focus:outline-none appearance-none cursor-pointer"
+              >
+                {SUPPORTED_MODELS
+                  .filter(m => m.provider === selectedProviderType)
+                  .map(model => (
+                    <option key={model.id} value={model.id}>
+                      {model.name} {model.id.includes(':free') ? '(FREE)' : ''}
+                    </option>
+                  ))
+                }
+              </select>
+          </div>
+
+          <button 
+              onClick={handleGenerateMCQsOnly}
+              className="w-full rounded-xl bg-indigo-600 py-3 font-bold text-white hover:bg-indigo-500 flex justify-center items-center gap-2"
+          >
+              <Sparkles className="h-5 w-5" />
+              START GENERATION
+          </button>
+        </div>
+      </Modal>
     </div>
   );
 }
@@ -657,13 +814,17 @@ function MaterialRow({
   index, 
   classroomId,
   onViewNotes,
-  onDelete
+  onGenerateMCQs,
+  onDelete,
+  isGenerating
 }: { 
   material: Material; 
   index: number; 
   classroomId: string;
   onViewNotes: () => void;
+  onGenerateMCQs: () => void;
   onDelete: () => void;
+  isGenerating?: boolean;
 }) {
   return (
     <motion.div 
@@ -707,6 +868,16 @@ function MaterialRow({
            >
               <BookOpen className="h-3 w-3" />
               VIEW NOTES
+           </button>
+          )}
+         {parseInt(String(material.notesCount)) > 0 && parseInt(String(material.mcqCount)) === 0 && (
+           <button 
+             onClick={(e) => { e.preventDefault(); onGenerateMCQs(); }}
+             disabled={!!isGenerating}
+             className="flex items-center gap-2 rounded-lg bg-indigo-500/10 px-4 py-2 text-xs font-bold text-indigo-400 hover:bg-indigo-500/20 transition-all disabled:opacity-50"
+           >
+              {isGenerating ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+              GENERATE MCQS
            </button>
          )}
          {material.status === 'Analyzed' && (

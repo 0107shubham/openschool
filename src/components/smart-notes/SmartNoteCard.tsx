@@ -84,7 +84,7 @@ export function SmartNoteCard({ note, index = 0 }: SmartNoteCardProps) {
           </div>
           <h3 className="font-bold text-white">{note.topic}</h3>
           {note.subtopic && (
-            <p className="text-xs text-white/40">{note.subtopic}</p>
+            <p className="text-sm font-medium text-indigo-400/90">{note.subtopic}</p>
           )}
         </div>
       </div>
@@ -97,7 +97,7 @@ export function SmartNoteCard({ note, index = 0 }: SmartNoteCardProps) {
         <div className="rounded-xl bg-gradient-to-br from-indigo-500/10 to-purple-500/10 border border-indigo-500/20 p-4 mb-3">
           <div className="flex items-center gap-2 mb-2">
             <span className="text-lg">{getTechniqueIcon(note.memoryTechnique.type)}</span>
-            <span className="text-xs font-bold text-indigo-400 uppercase">
+            <span className="text-sm font-black text-indigo-400 uppercase tracking-wider">
               {note.memoryTechnique.type || "Memory Trick"}
             </span>
           </div>
@@ -115,8 +115,8 @@ export function SmartNoteCard({ note, index = 0 }: SmartNoteCardProps) {
         {note.examTips && (
           <div className="rounded-lg bg-green-500/5 border border-green-500/10 p-3">
             <div className="flex items-center gap-1 mb-1">
-              <Lightbulb className="h-3 w-3 text-green-400" />
-              <span className="text-[10px] font-bold text-green-400 uppercase">Exam Tip</span>
+              <Lightbulb className="h-4 w-4 text-green-400" />
+              <span className="text-xs font-black text-green-400 uppercase tracking-wide">Exam Tip</span>
             </div>
             <p className="text-xs text-white/60">{note.examTips}</p>
           </div>
@@ -124,8 +124,8 @@ export function SmartNoteCard({ note, index = 0 }: SmartNoteCardProps) {
         {note.commonMistakes && (
           <div className="rounded-lg bg-red-500/5 border border-red-500/10 p-3">
             <div className="flex items-center gap-1 mb-1">
-              <AlertTriangle className="h-3 w-3 text-red-400" />
-              <span className="text-[10px] font-bold text-red-400 uppercase">Common Mistake</span>
+              <AlertTriangle className="h-4 w-4 text-red-400" />
+              <span className="text-xs font-black text-red-400 uppercase tracking-wide">Common Mistake</span>
             </div>
             <p className="text-xs text-white/60">{note.commonMistakes}</p>
           </div>
