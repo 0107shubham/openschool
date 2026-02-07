@@ -17,6 +17,7 @@ export default function QuizPage() {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [score, setScore] = useState(0);
   const [showScore, setShowScore] = useState(false);
+  const [classroomId, setClassroomId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchQuiz();
@@ -29,6 +30,7 @@ export default function QuizPage() {
       if (data.mcqs && Array.isArray(data.mcqs)) {
         setQuestions(data.mcqs);
         setSourceInfo({ source: data.source || "Unknown", type: data.type || "Quiz" });
+        setClassroomId(data.classroomId || null);
       }
     } catch (error) {
        console.error("Failed to load quiz", error);
@@ -118,7 +120,7 @@ export default function QuizPage() {
               <RotateCcw className="h-5 w-5" />
               Retry
             </button>
-            <Link href="/dashboard">
+            <Link href={classroomId ? `/classroom/${classroomId}` : "/dashboard"}>
               <button className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 py-4 font-bold text-white hover:bg-indigo-500 transition-colors">
                 <Home className="h-5 w-5" />
                 Done
@@ -136,7 +138,7 @@ export default function QuizPage() {
       {/* Quiz Header */}
       <header className="mx-auto max-w-4xl flex items-center justify-between mb-12">
         <Link 
-          href={`/classroom/${id}`} 
+          href={classroomId ? `/classroom/${classroomId}` : "/dashboard"} 
           className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-bold text-white/50 hover:bg-white/10 hover:text-white transition-all"
         >
           <ChevronLeft className="h-4 w-4" />

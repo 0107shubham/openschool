@@ -36,7 +36,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
          return NextResponse.json({ 
            mcqs: mcqRes.rows,
            source: classroomName,
-           type: "Classroom Quiz"
+           type: "Classroom Quiz",
+           classroomId: materialId
          });
        }
     }
@@ -45,17 +46,20 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
        return NextResponse.json({ mcqs: [], source: "Unknown", type: "Quiz" });
     }
 
-    // Since we found MCQs directly by materialId, let's get the material title
-    const materialTitleRes = await query(
-      `SELECT title FROM "Material" WHERE id = $1`,
+    // Since we found MCQs directly by materialId, let's get the material title and classroomId
+    const materialRes = await query(
+      `SELECT title, "classroomId" FROM "Material" WHERE id = $1`,
       [materialId]
     );
-    const materialTitle = materialTitleRes.rows[0]?.title || "Chapter Quiz";
+    const materialData = materialRes.rows[0];
+    const materialTitle = materialData?.title || "Chapter Quiz";
+    const classroomId = materialData?.classroomId;
 
     return NextResponse.json({ 
       mcqs: mcqRes.rows,
       source: materialTitle,
-      type: "Chapter Quiz"
+      type: "Chapter Quiz",
+      classroomId: classroomId
     });
 
   } catch (error: any) {

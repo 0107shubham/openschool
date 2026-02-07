@@ -180,6 +180,10 @@ export default function DashboardPage() {
                        setClassroomToDelete({ id: classroom.id, name: classroom.name });
                        setDeleteModalOpen(true);
                      }}
+                     onQuiz={(e) => {
+                       e.stopPropagation();
+                       router.push(`/quiz/${classroom.id}`);
+                     }}
                    />
                 </div>
               ))}

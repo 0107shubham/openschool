@@ -11,9 +11,10 @@ interface ClassroomCardProps {
   materialCount: number;
   strength: number; // 0 to 100
   onDelete?: (e: React.MouseEvent) => void;
+  onQuiz?: (e: React.MouseEvent) => void;
 }
 
-export function ClassroomCard({ id, name, subject, materialCount, strength, onDelete }: ClassroomCardProps) {
+export function ClassroomCard({ id, name, subject, materialCount, strength, onDelete, onQuiz }: ClassroomCardProps) {
   return (
     <motion.div
       whileHover={{ y: -5 }}
@@ -77,6 +78,12 @@ export function ClassroomCard({ id, name, subject, materialCount, strength, onDe
           </div>
           <motion.div 
             whileTap={{ scale: 0.95 }}
+            onClick={(e) => {
+              if (onQuiz) {
+                e.stopPropagation();
+                onQuiz(e);
+              }
+            }}
             className="flex items-center gap-1 text-xs font-bold text-indigo-400 hover:text-indigo-300 cursor-pointer"
           >
             <span>LEARN</span>

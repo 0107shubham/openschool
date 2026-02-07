@@ -58,10 +58,8 @@ function cleanJsonResponse(content: string): string {
     return cleaned.slice(start, end + 1).trim();
   }
   
-  // 3. Last resort: just strip backticks if they are at the very start/end
-  if (cleaned.startsWith("```")) {
-    cleaned = cleaned.replace(/^```[a-z]*\n?/, "").replace(/\n?```$/, "");
-  }
+  // 4. Try to strip common conversational prefixes
+  cleaned = cleaned.replace(/^(Here is the JSON:|JSON response:|Result:)\s*/i, "");
   
   return cleaned.trim();
 }
@@ -106,14 +104,18 @@ function repairJson(json: string): string {
   }
 
   // 4. Final check: if it doesn't end with } or ], something is very wrong
-  // But we'll try to return what we have.
+  // If it's empty after cleaning, return empty object
+  if (!repaired) return "{}";
+
   return repaired;
 }
 
 /**
  * Split text into manageable chunks for AI processing
+ * Reduced maxLength to 4000 to ensure AI doesn't hit output limits 
+ * while maintaining high granularity.
  */
-function chunkText(text: string, maxLength: number = 6000): string[] {
+function chunkText(text: string, maxLength: number = 4000): string[] {
   const chunks: string[] = [];
   let currentPos = 0;
 
@@ -126,11 +128,11 @@ function chunkText(text: string, maxLength: number = 6000): string[] {
 
     // Try to find a good breaking point (newline or period)
     const nextNewline = text.lastIndexOf('\n', endPos);
-    if (nextNewline > currentPos + (maxLength * 0.7)) {
+    if (nextNewline > currentPos + (maxLength * 0.6)) {
        endPos = nextNewline;
     } else {
        const nextPeriod = text.lastIndexOf('. ', endPos);
-       if (nextPeriod > currentPos + (maxLength * 0.7)) {
+       if (nextPeriod > currentPos + (maxLength * 0.6)) {
           endPos = nextPeriod + 1;
        }
     }
@@ -176,7 +178,7 @@ export async function generateSmartNotes(text: string, modelId: string = DEFAULT
         // Disable JSON mode for free models as many don't support it
         ...(modelId.endsWith(':free') ? {} : { response_format: { type: "json_object" } }),
         temperature: 0.5,
-        max_tokens: modelId.endsWith(':free') ? 8000 : 2000, 
+        max_tokens: modelId.endsWith(':free') ? 8000 : 4000, 
       });
 
       const content = response.choices[0].message.content;
@@ -256,9 +258,10 @@ export async function generateMCQsFromNotes(notes: any, style: string, level: st
         { role: "user", content: prompt },
       ],
       // Disable JSON mode for free models as many don't support it
+      // Also disable it if we're expecting a top-level array which some JSON modes don't like
       ...(modelId.endsWith(':free') ? {} : { response_format: { type: "json_object" } }),
       temperature: 0.7,
-      max_tokens: modelId.endsWith(':free') ? 8000 : 2000, 
+      max_tokens: modelId.endsWith(':free') ? 8000 : 4000, 
     });
 
     const content = response.choices[0].message.content;
@@ -282,9 +285,11 @@ export async function generateMCQsFromNotes(notes: any, style: string, level: st
       }
     }
 
-    if (Array.isArray(parsed)) return parsed;
     if (parsed) {
-      return parsed.questions || parsed.mcqs || parsed.questions_list || parsed.notes || [];
+      if (Array.isArray(parsed)) return parsed;
+      if (parsed.questions && Array.isArray(parsed.questions)) return parsed.questions;
+      if (parsed.mcqs && Array.isArray(parsed.mcqs)) return parsed.mcqs;
+      return [];
     }
     return [];
   } catch (error) {
