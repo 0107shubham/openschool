@@ -24,9 +24,10 @@ interface SmartNote {
 interface SmartNoteCardProps {
   note: SmartNote;
   index?: number;
+  onCreateMCQ?: (note: SmartNote) => void;
 }
 
-export function SmartNoteCard({ note, index = 0 }: SmartNoteCardProps) {
+export function SmartNoteCard({ note, index = 0, onCreateMCQ }: SmartNoteCardProps) {
   const getExamBadgeColor = (exam: string) => {
     switch (exam) {
       case "SSC":
@@ -87,6 +88,15 @@ export function SmartNoteCard({ note, index = 0 }: SmartNoteCardProps) {
             <p className="text-sm font-medium text-indigo-400/90">{note.subtopic}</p>
           )}
         </div>
+        {onCreateMCQ && (
+          <button
+            onClick={() => onCreateMCQ(note)}
+            className="p-2 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 rounded-lg transition-colors"
+            title="Generate MCQ from this note"
+          >
+            <Brain className="h-4 w-4" />
+          </button>
+        )}
       </div>
 
       {/* Content */}

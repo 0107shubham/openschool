@@ -23,6 +23,12 @@ export async function GET(req: Request, { params }: { params: Promise<{ material
 
     const notesRes = await query(sqlQuery, sqlParams);
 
+    // Fetch Mind Maps
+    const mindMapsRes = await query(
+      `SELECT * FROM "MindMap" WHERE "materialId" = $1 ORDER BY "createdAt" DESC`,
+      [materialId]
+    );
+
     // Calculate summary
     const allNotes = notesRes.rows;
     const summary = {
@@ -53,6 +59,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ material
           ? JSON.parse(n.memoryTechnique) 
           : n.memoryTechnique
       })),
+      mindMaps: mindMapsRes.rows,
       byTopic,
       summary
     });

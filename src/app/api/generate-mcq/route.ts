@@ -1,19 +1,21 @@
 import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
-import { generateSmartNotes, generateMCQsFromNotes, SUPPORTED_MODELS } from "@/lib/ai/client";
+import { generateSmartNotes, generateMCQsFromNotes, generateMindMap, SUPPORTED_MODELS } from "@/lib/ai/client";
 
 export const maxDuration = 300; // Extend timeout to 300s (Pro maximum) for reasoning models
 
 export async function POST(req: Request) {
   try {
+    const reqBody = await req.json();
     const { 
       materialId, 
       level = "Medium", 
       style = "SSC CGL 2024", 
       modelId, 
       accountIndex = 1,
-      generationType = "BOTH" // "BOTH", "NOTES", "MCQS"
-    } = await req.json();
+      generationType = "BOTH", // "BOTH", "NOTES", "MCQS", "ENHANCE"
+      focus // Optional specific focus for MCQs or Notes Enhancement
+    } = reqBody;
 
     // Determine provider and correct API Key
     const model = SUPPORTED_MODELS.find(m => m.id === modelId);
@@ -102,12 +104,79 @@ export async function POST(req: Request) {
       }
     }
 
+    // 3.5. HANDLE ENHANCE NOTES
+    if (generationType === "ENHANCE") {
+       if (!focus) return NextResponse.json({ error: "Focus topic is required for enhancement" }, { status: 400 });
+
+       console.log(`Enhancing notes with focus: "${focus}" and style: "${style}" using model: ${modelId}...`);
+       
+       // Generate NEW notes based on focus
+       const enhancedData = await generateSmartNotes(material.rawText, modelId, apiKey, focus, style);
+       
+       if (enhancedData && enhancedData.notes.length > 0) {
+          // Save NEW notes
+          for (const note of enhancedData.notes) {
+            const res = await query(
+               `INSERT INTO "SmartNote" ("materialId", topic, subtopic, content, "examRelevance", importance, "memoryTechnique", "examTips", "commonMistakes")
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+                RETURNING *`,
+               [
+                 materialId,
+                 note.topic,
+                 note.subtopic || null,
+                 note.content,
+                 note.examRelevance,
+                 note.importance,
+                 JSON.stringify(note.memoryTechnique),
+                 note.examTips || null,
+                 note.commonMistakes || null
+               ]
+             );
+             savedNotes.push(res.rows[0]);
+          }
+
+          // Use ONLY these new notes for MCQ generation
+          smartNotesData = enhancedData; 
+       } else {
+          return NextResponse.json({ error: "Failed to generate enhanced notes" }, { status: 500 });
+       }
+    }
+
+
+    // 3.6. HANDLE MIND MAP
+    // 3.6. HANDLE MIND MAP
+    if (generationType === "MINDMAP") {
+       const mapFormat = reqBody.mapFormat || "MERMAID"; // "MERMAID" or "TEXT"
+       console.log(`Generating Mind Map with focus: "${focus || 'Overview'}" using model: ${modelId} in format: ${mapFormat}...`);
+       
+       const content = await generateMindMap(material.rawText, modelId, apiKey, focus, mapFormat);
+       
+       if (content) {
+
+          // Save Mind Map to DB
+          const mindMapId = crypto.randomUUID();
+          await query(
+            `INSERT INTO "MindMap" ("id", "materialId", "content", "updatedAt") VALUES ($1, $2, $3, NOW())`,
+            [mindMapId, materialId, content]
+          );
+          
+          return NextResponse.json({ 
+            success: true, 
+            mindMap: { id: mindMapId, content: content } 
+          });
+       } else {
+          return NextResponse.json({ error: "Failed to generate mind map" }, { status: 500 });
+       }
+    }
+
+
+
     // 4. GENERATE MCQs if requested
     const savedMcqs = [];
     if (generationType === "MCQS" || generationType === "BOTH") {
       const mcqRequirement = Math.max(12, Math.ceil(smartNotesData.notes.length * 1.1));
       console.log(`Generating ${mcqRequirement} MCQs from ${smartNotesData.notes.length} smart notes...`);
-      const mcqs = await generateMCQsFromNotes(smartNotesData, style, level, mcqRequirement, modelId, apiKey);
+      const mcqs = await generateMCQsFromNotes(smartNotesData, style, level, mcqRequirement, modelId, apiKey, focus);
 
       // Save MCQs to database
       for (const mcq of mcqs) {

@@ -36,6 +36,18 @@ model Material {
   mcqs        MCQ[]
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
+  MindMap     MindMap[]
+}
+
+model MindMap {
+  id          String   @id @default(cuid())
+  materialId  String
+  material    Material @relation(fields: [materialId], references: [id], onDelete: Cascade)
+  content     String   @db.Text // Mermaid.js syntax
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([materialId])
 }
 
 model SmartNote {

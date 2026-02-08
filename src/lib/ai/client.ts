@@ -1,5 +1,5 @@
 import OpenAI from "openai";
-import { SMART_NOTES_PROMPT, MCQ_FROM_NOTES_PROMPT } from "./prompts";
+import { SMART_NOTES_PROMPT, MCQ_FROM_NOTES_PROMPT, ENHANCE_NOTES_PROMPT, MIND_MAP_PROMPT, TEXT_TREE_PROMPT } from "./prompts";
 
 // Providers
 export type AIProvider = "OpenRouter" | "NVIDIA";
@@ -170,7 +170,7 @@ function chunkText(text: string, maxLength: number = 4000): string[] {
 /**
  * Generate comprehensive smart notes with memory techniques from raw text
  */
-export async function generateSmartNotes(text: string, modelId: string = DEFAULT_MODEL, apiKey?: string) {
+export async function generateSmartNotes(text: string, modelId: string = DEFAULT_MODEL, apiKey?: string, focus?: string, style?: string) {
   const openai = getAIClient(modelId, apiKey);
   try {
     const chunks = chunkText(text);
@@ -188,7 +188,9 @@ export async function generateSmartNotes(text: string, modelId: string = DEFAULT
     const chunkPromises = chunks.map(async (chunk, i) => {
       try {
         console.log(`Starting generation for chunk ${i + 1}/${chunks.length}...`);
-        const prompt = SMART_NOTES_PROMPT(chunk);
+        const prompt = focus 
+          ? ENHANCE_NOTES_PROMPT(chunk, focus, style || "SSC")
+          : SMART_NOTES_PROMPT(chunk);
 
         // Add thinking param for NVIDIA Kimi, Qwen3, Nemotron, or DeepSeek
         const isThinkingModel = modelId === "moonshotai/kimi-k2.5" || 
@@ -271,30 +273,69 @@ export async function generateSmartNotes(text: string, modelId: string = DEFAULT
       }
     }
 
-    summary.totalConcepts = allNotes.length;
-
+    const validNotes = allNotes.filter(n => n && n.concept); // Ensure notes are valid
     return {
-      notes: allNotes,
-      summary: summary
+      notes: validNotes,
+      summary: {
+        total: validNotes.length,
+        sscCount: validNotes.filter(n => n.examRelevance === "SSC").length,
+        upscCount: validNotes.filter(n => n.examRelevance === "UPSC").length,
+        highPriority: validNotes.filter(n => n.importance >= 4).length
+      }
     };
+
   } catch (error) {
     console.error("Smart Notes Generation Error:", error);
-    throw error;
+    throw new Error("Failed to generate smart notes. Please try again.");
+  }
+}
+
+export async function generateMindMap(text: string, modelId: string = DEFAULT_MODEL, apiKey?: string, focus?: string, format: "MERMAID" | "TEXT" = "MERMAID") {
+  const openai = getAIClient(modelId, apiKey);
+  try {
+    const prompt = format === "TEXT" 
+      ? TEXT_TREE_PROMPT(text.substring(0, 15000), focus)
+      : MIND_MAP_PROMPT(text.substring(0, 15000), focus);
+
+    // Generate Mind Map
+    const response = await openai.chat.completions.create({
+      model: modelId || DEFAULT_MODEL,
+      messages: [
+        { role: "system", content: format === "TEXT" ? "You are a specialized text structure generator." : "You are a specialized Mind Map generator using Mermaid.js syntax." },
+        { role: "user", content: prompt } // Limit context window
+      ],
+      temperature: 0.3,
+    });
+
+    let content = response.choices[0]?.message?.content || "";
+    
+    // Clean up markdown code blocks if present
+    content = content.replace(/^```mermaid\s*/, "").replace(/^```\s*/, "").replace(/```$/, "").trim();
+    
+    // Safety check: ensure it starts with mindmap ONLY if format is MERMAID
+    if (format === "MERMAID" && !content.startsWith("mindmap")) {
+        content = "mindmap\n" + content;
+    }
+
+    return content;
+  } catch (error) {
+    console.error("Mind Map Generation Error:", error);
+    throw new Error("Failed to generate mind map.");
   }
 }
 
 /**
  * Generate MCQs from smart notes (ensures 100% accuracy to source material)
  */
-export async function generateMCQsFromNotes(notes: any, style: string, level: string, count: number = 20, modelId: string = DEFAULT_MODEL, apiKey?: string) {
+export async function generateMCQsFromNotes(notes: any, style: string, level: string, count: number = 20, modelId: string = DEFAULT_MODEL, apiKey?: string, focus?: string) {
   const openai = getAIClient(modelId, apiKey);
   try {
     // Use the count requested by user or default to 20
     const mcqCount = count;
     const notesText = JSON.stringify(notes, null, 2);
-    const prompt = MCQ_FROM_NOTES_PROMPT(notesText, style, level, mcqCount);
+    const prompt = MCQ_FROM_NOTES_PROMPT(notesText, style, level, mcqCount, focus);
 
-    console.log(`Generating ${mcqCount} MCQs from notes...`);
+    console.log(`Generating ${mcqCount} MCQs from notes${focus ? ` with focus: ${focus}` : ""}...`);
 
     // Add thinking param for NVIDIA Kimi, Qwen3, Nemotron, or DeepSeek
     const isThinkingModel = modelId === "moonshotai/kimi-k2.5" || 
