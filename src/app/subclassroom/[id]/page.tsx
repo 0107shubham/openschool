@@ -164,6 +164,26 @@ export default function SubclassroomPage() {
     }
   };
 
+  const handleDeleteMcqs = async (materialId: string) => {
+    if (!confirm("Are you sure you want to delete ONLY the MCQs for this material?")) return;
+    
+    try {
+      const res = await fetch(`/api/materials/${materialId}?type=mcqs`, {
+        method: "DELETE",
+      });
+      
+      if (res.ok) {
+        fetchSubclassroomData();
+      } else {
+        const error = await res.json();
+        alert(`Failed to delete MCQs: ${error.error}`);
+      }
+    } catch (error) {
+      console.error("Delete error:", error);
+      alert("Failed to delete MCQs.");
+    }
+  };
+
   const parsePageSelection = (selection: string) => {
     const parts = selection.split('-').map(p => p.trim());
     const start = parseInt(parts[0]) || 1;
@@ -425,6 +445,7 @@ export default function SubclassroomPage() {
                             setEditMaterialModalOpen(true);
                           }}
                           onDelete={() => handleDeleteMaterial(material.id)}
+                          onDeleteMcqs={() => handleDeleteMcqs(material.id)}
                           isGenerating={generatingFor === material.id}
                         />
                       ))}
@@ -466,8 +487,23 @@ export default function SubclassroomPage() {
             </div>
 
             <div className="space-y-2">
-                <label className="text-xs font-bold text-white/60 uppercase">Sub-topic (Optional)</label>
-                <input type="text" placeholder="e.g. Basic Concepts" value={newMaterial.subcategory} onChange={(e) => setNewMaterial({...newMaterial, subcategory: e.target.value})} className="w-full rounded-xl border border-white/10 bg-white/5 p-3 text-white focus:border-indigo-500 focus:outline-none" />
+                <label className="text-xs font-bold text-white/60 uppercase">Generation Type</label>
+                <div className="grid grid-cols-3 gap-2">
+                    {(['BOTH', 'NOTES', 'MCQS'] as const).map((type) => (
+                        <button
+                            key={type}
+                            type="button"
+                            onClick={() => setGenerationType(type)}
+                            className={`px-3 py-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all border ${
+                                generationType === type 
+                                ? 'bg-indigo-600 border-indigo-500 text-white' 
+                                : 'bg-white/5 border-white/10 text-white/40 hover:text-white'
+                            }`}
+                        >
+                            {type}
+                        </button>
+                    ))}
+                </div>
             </div>
 
             <div className="space-y-2">
@@ -578,15 +614,7 @@ export default function SubclassroomPage() {
                   />
               </div>
 
-              <div className="space-y-2">
-                  <label className="text-xs font-bold text-white/60 uppercase">Sub-topic</label>
-                  <input 
-                    type="text" 
-                    value={materialToEdit.subcategory || ""}
-                    onChange={(e) => setMaterialToEdit({...materialToEdit, subcategory: e.target.value})}
-                    className="w-full rounded-xl border border-white/10 bg-white/5 p-4 text-white focus:border-indigo-500 focus:outline-none transition-all"
-                  />
-              </div>
+
 
               <button 
                   disabled={updatingMaterial}
@@ -601,7 +629,7 @@ export default function SubclassroomPage() {
   );
 }
 
-function MaterialRow({ material, index, onViewNotes, onGenerateMCQs, onEdit, onDelete, isGenerating }: any) {
+function MaterialRow({ material, index, onViewNotes, onGenerateMCQs, onEdit, onDelete, onDeleteMcqs, isGenerating }: any) {
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.1 }} className="group flex items-center justify-between rounded-2xl border border-white/5 bg-white/[0.02] p-4 hover:bg-white/5">
       <div className="flex items-center gap-4">
@@ -614,7 +642,16 @@ function MaterialRow({ material, index, onViewNotes, onGenerateMCQs, onEdit, onD
       <div className="flex items-center gap-2">
          {parseInt(material.notesCount) > 0 && <button onClick={onViewNotes} className="px-4 py-2 rounded-lg bg-indigo-500/10 text-xs font-bold text-indigo-400 hover:bg-indigo-500/20 transition-all">VIEW NOTES</button>}
          {parseInt(material.notesCount) > 0 && parseInt(material.mcqCount) === 0 && <button onClick={onGenerateMCQs} className="px-4 py-2 rounded-lg bg-purple-500/10 text-xs font-bold text-purple-400 hover:bg-purple-500/20 transition-all">{isGenerating ? <Loader2 className="h-3 w-3 animate-spin" /> : "MCQS"}</button>}
-         {parseInt(material.mcqCount) > 0 && <Link href={`/quiz/${material.id}`}><button className="px-4 py-2 rounded-lg bg-indigo-600 text-xs font-bold text-white hover:bg-indigo-500 transition-all">QUIZ</button></Link>}
+         {parseInt(material.mcqCount) > 0 && (
+           <div className="flex items-center gap-1 bg-indigo-600 rounded-lg overflow-hidden">
+             <Link href={`/quiz/${material.id}`} className="px-4 py-2 text-xs font-bold text-white hover:bg-indigo-500 transition-all border-r border-white/10">
+               QUIZ
+             </Link>
+             <button onClick={onDeleteMcqs} className="px-2 py-2 text-white/50 hover:text-red-300 hover:bg-red-500/20 transition-all" title="Delete Only MCQs">
+               <Trash2 className="h-3.5 w-3.5" />
+             </button>
+           </div>
+         )}
          <button onClick={onEdit} className="p-2 text-white/10 hover:text-indigo-400 transition-all" title="Edit Details"><Edit2 className="h-4 w-4" /></button>
          <button onClick={onDelete} className="p-2 text-white/10 hover:text-red-400 transition-all" title="Delete Content"><Trash2 className="h-4 w-4" /></button>
       </div>

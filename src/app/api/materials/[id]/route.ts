@@ -7,9 +7,23 @@ export async function DELETE(
 ) {
   try {
     const { id: materialId } = await params;
+    const { searchParams } = new URL(req.url);
+    const type = searchParams.get("type");
 
     if (!materialId) {
       return NextResponse.json({ error: "Material ID is required" }, { status: 400 });
+    }
+
+    if (type === "mcqs") {
+      // Delete only MCQs for this material
+      await query(
+        `DELETE FROM "MCQ" WHERE "materialId" = $1`,
+        [materialId]
+      );
+      return NextResponse.json({ 
+        success: true, 
+        message: "MCQs deleted successfully"
+      });
     }
 
     // Delete the material. 
