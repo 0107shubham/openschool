@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { BookOpen, MoreVertical, BrainCircuit, Rocket, Trash2 } from "lucide-react";
+import { BookOpen, MoreVertical, BrainCircuit, Rocket, Trash2, Edit2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface ClassroomCardProps {
@@ -11,10 +11,11 @@ interface ClassroomCardProps {
   materialCount: number;
   strength: number; // 0 to 100
   onDelete?: (e: React.MouseEvent) => void;
+  onEdit?: (e: React.MouseEvent) => void;
   onQuiz?: (e: React.MouseEvent) => void;
 }
 
-export function ClassroomCard({ id, name, subject, materialCount, strength, onDelete, onQuiz }: ClassroomCardProps) {
+export function ClassroomCard({ id, name, subject, materialCount, strength, onDelete, onEdit, onQuiz }: ClassroomCardProps) {
   return (
     <motion.div
       whileHover={{ y: -5 }}
@@ -30,6 +31,19 @@ export function ClassroomCard({ id, name, subject, materialCount, strength, onDe
           <BookOpen className="h-6 w-6" />
         </div>
         <div className="flex items-center gap-2">
+          {onEdit && (
+            <button 
+              onClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                onEdit(e);
+              }}
+              className="text-white/20 hover:text-indigo-400 transition-colors p-2 -m-2 relative z-10"
+              title="Edit Classroom"
+            >
+              <Edit2 className="h-4 w-4" />
+            </button>
+          )}
           {onDelete && (
             <button 
               onClick={(e) => {

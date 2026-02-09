@@ -36,6 +36,18 @@ async function initDB() {
       );
     `);
 
+    // Subclassrooms Table (NEW)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS "Subclassroom" (
+        id TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
+        name TEXT NOT NULL,
+        description TEXT,
+        "classroomId" TEXT NOT NULL REFERENCES "Classroom"(id) ON DELETE CASCADE,
+        "createdAt" TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
     // Materials Table
     await client.query(`
       CREATE TABLE IF NOT EXISTS "Material" (
@@ -43,7 +55,9 @@ async function initDB() {
         title TEXT NOT NULL,
         "pdfUrl" TEXT NOT NULL,
         "rawText" TEXT NOT NULL,
+        subcategory TEXT,
         "classroomId" TEXT NOT NULL REFERENCES "Classroom"(id) ON DELETE CASCADE,
+        "subclassroomId" TEXT NOT NULL REFERENCES "Subclassroom"(id) ON DELETE CASCADE,
         "createdAt" TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
         "updatedAt" TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
       );

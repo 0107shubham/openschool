@@ -192,21 +192,25 @@ export async function generateSmartNotes(text: string, modelId: string = DEFAULT
           ? ENHANCE_NOTES_PROMPT(chunk, focus, style || "SSC")
           : SMART_NOTES_PROMPT(chunk);
 
-        // Add thinking param for NVIDIA Kimi, Qwen3, Nemotron, or DeepSeek
-        const isThinkingModel = modelId === "moonshotai/kimi-k2.5" || 
-                               modelId === "qwen/qwen3-next-80b-a3b-thinking" || 
-                               modelId === "nvidia/nemotron-3-nano-30b-a3b" ||
-                               modelId === "deepseek-ai/deepseek-v3.1";
-                               
+        // reasoning_budget and chat_template_kwargs are often NOT supported on standard API endpoints 
+        // especially NVIDIA Integrate. We'll disable them for now to avoid 400 errors.
         let extraParams: any = {};
         
-        if (modelId === "moonshotai/kimi-k2.5" || modelId === "qwen/qwen3-next-80b-a3b-thinking" || modelId === "deepseek-ai/deepseek-v3.1") {
-          extraParams = { chat_template_kwargs: { thinking: true } };
-        } else if (modelId === "nvidia/nemotron-3-nano-30b-a3b") {
-          extraParams = { 
-            reasoning_budget: 16384,
-            chat_template_kwargs: { enable_thinking: true } 
-          };
+        // Check if the model is an NVIDIA model
+        const model = SUPPORTED_MODELS.find(m => m.id === modelId);
+        const provider = model?.provider || "OpenRouter";
+        const isNvidia = provider === "NVIDIA";
+        const isThinkingModel = modelId.includes('thinking') || modelId.includes('nemotron') || modelId.includes('kimi');
+        
+        if (!isNvidia) {
+          if (modelId === "moonshotai/kimi-k2.5" || modelId === "qwen/qwen3-next-80b-a3b-thinking" || modelId === "deepseek-ai/deepseek-v3.1") {
+            extraParams = { chat_template_kwargs: { thinking: true } };
+          } else if (modelId === "nvidia/nemotron-3-nano-30b-a3b") {
+            extraParams = { 
+              reasoning_budget: 16384,
+              chat_template_kwargs: { enable_thinking: true } 
+            };
+          }
         }
 
         const response = await openai.chat.completions.create({
@@ -218,11 +222,12 @@ export async function generateSmartNotes(text: string, modelId: string = DEFAULT
             },
             { role: "user", content: prompt },
           ],
-          // Disable JSON mode for free models as many don't support it
-          ...(modelId.endsWith(':free') ? {} : { response_format: { type: "json_object" } }),
+          // Disable JSON mode for free models and NVIDIA as many don't support it
+          // NVIDIA Integrate specifically throws 400 if response_format is present for some models
+          ...((modelId.endsWith(':free') || isNvidia) ? {} : { response_format: { type: "json_object" } }),
           temperature: 0.5,
           // Use higher tokens for reasoning models
-          max_tokens: modelId.endsWith(':free') ? 8000 : (isThinkingModel || modelId.includes('kimi') ? 16384 : 4000),
+          max_tokens: (modelId.endsWith(':free') || isNvidia) ? 8192 : (isThinkingModel || modelId.includes('kimi') ? 16384 : 4000),
           ...extraParams
         } as any);
 
@@ -340,21 +345,22 @@ export async function generateMCQsFromNotes(notes: any, style: string, level: st
 
     console.log(`Generating ${mcqCount} MCQs from notes${focus ? ` with focus: ${focus}` : ""}...`);
 
-    // Add thinking param for NVIDIA Kimi, Qwen3, Nemotron, or DeepSeek
-    const isThinkingModel = modelId === "moonshotai/kimi-k2.5" || 
-                           modelId === "qwen/qwen3-next-80b-a3b-thinking" || 
-                           modelId === "nvidia/nemotron-3-nano-30b-a3b" ||
-                           modelId === "deepseek-ai/deepseek-v3.1";
-                           
+    // reasoning_budget and chat_template_kwargs are often NOT supported on standard API endpoints 
+    // especially NVIDIA Integrate. We'll disable them for now to avoid 400 errors.
+    const isNvidia = modelId.startsWith('nvidia/') || modelId.startsWith('qwen/') || modelId.startsWith('deepseek') || modelId.startsWith('moonshot');
+    const isThinkingModel = modelId.includes('thinking') || modelId.includes('nemotron') || modelId.includes('kimi');
+    
     let extraParams: any = {};
     
-    if (modelId === "moonshotai/kimi-k2.5" || modelId === "qwen/qwen3-next-80b-a3b-thinking" || modelId === "deepseek-ai/deepseek-v3.1") {
-      extraParams = { chat_template_kwargs: { thinking: true } };
-    } else if (modelId === "nvidia/nemotron-3-nano-30b-a3b") {
-      extraParams = { 
-        reasoning_budget: 16384,
-        chat_template_kwargs: { enable_thinking: true } 
-      };
+    if (!isNvidia) {
+      if (modelId === "moonshotai/kimi-k2.5" || modelId === "qwen/qwen3-next-80b-a3b-thinking" || modelId === "deepseek-ai/deepseek-v3.1") {
+        extraParams = { chat_template_kwargs: { thinking: true } };
+      } else if (modelId === "nvidia/nemotron-3-nano-30b-a3b") {
+        extraParams = { 
+          reasoning_budget: 16384,
+          chat_template_kwargs: { enable_thinking: true } 
+        };
+      }
     }
 
     const response = await openai.chat.completions.create({
@@ -366,11 +372,11 @@ export async function generateMCQsFromNotes(notes: any, style: string, level: st
           },
         { role: "user", content: prompt },
       ],
-      // Disable JSON mode for free models as many don't support it
-      ...(modelId.endsWith(':free') ? {} : { response_format: { type: "json_object" } }),
+      // Disable JSON mode for free models and NVIDIA as many don't support it
+      ...((modelId.endsWith(':free') || isNvidia) ? {} : { response_format: { type: "json_object" } }),
       temperature: 0.7,
       // Use higher tokens for reasoning models
-      max_tokens: modelId.endsWith(':free') ? 8000 : (isThinkingModel || modelId.includes('kimi') ? 16384 : 4000),
+      max_tokens: (modelId.endsWith(':free') || isNvidia) ? 8192 : (isThinkingModel || modelId.includes('kimi') ? 16384 : 4000),
       ...extraParams
     } as any);
 

@@ -17,7 +17,34 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       [materialId]
     );
 
-    // If no MCQs found, check if it's a classroom ID
+    // If no MCQs found, check if it's a subclassroom ID
+    if (mcqRes.rows.length === 0) {
+      const subclassroomRes = await query(
+        `SELECT id, name, "classroomId" FROM "Subclassroom" WHERE id = $1`,
+        [materialId]
+      );
+      
+      if (subclassroomRes.rows.length > 0) {
+        const subName = subclassroomRes.rows[0].name;
+        const classId = subclassroomRes.rows[0].classroomId;
+        mcqRes = await query(`
+           SELECT q.* FROM "MCQ" q
+           JOIN "Material" m ON q."materialId" = m.id
+           WHERE m."subclassroomId" = $1
+           ORDER BY RANDOM()
+        `, [materialId]);
+
+        return NextResponse.json({ 
+          mcqs: mcqRes.rows,
+          source: subName,
+          type: "Module Quiz",
+          classroomId: classId,
+          subclassroomId: materialId
+        });
+      }
+    }
+
+    // If still no MCQs, check if it's a classroom ID
     if (mcqRes.rows.length === 0) {
        const classroomMaterialsRes = await query(
          `SELECT id, name FROM "Classroom" WHERE id = $1`,

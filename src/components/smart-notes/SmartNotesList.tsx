@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { SmartNoteCard } from "./SmartNoteCard";
-import { Loader2, BookOpen, GraduationCap, FileText, Filter, Target, Sparkles, Plus, Zap, Brain } from "lucide-react";
+import { Loader2, BookOpen, GraduationCap, FileText, Filter, Target, Sparkles, Plus, Zap, Brain, Edit2, Trash2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Modal } from "@/components/ui/Modal";
 import { toast } from "sonner"; 
@@ -68,6 +68,11 @@ export function SmartNotesList({ materialId, materialTitle }: SmartNotesListProp
   const [mindMapFormat, setMindMapFormat] = useState<"MERMAID" | "TEXT">("MERMAID");
   const [isDeletingMap, setIsDeletingMap] = useState(false);
 
+  // Edit Note State
+  const [isEditNoteModalOpen, setIsEditNoteModalOpen] = useState(false);
+  const [noteToEdit, setNoteToEdit] = useState<any>(null);
+  const [isUpdatingNote, setIsUpdatingNote] = useState(false);
+
   useEffect(() => {
     mermaid.initialize({ startOnLoad: true, theme: 'dark' });
   }, []);
@@ -108,6 +113,50 @@ export function SmartNotesList({ materialId, materialTitle }: SmartNotesListProp
       setError(err.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleUpdateNote = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!noteToEdit) return;
+
+    try {
+      setIsUpdatingNote(true);
+      const res = await fetch(`/api/smart-notes/note/${noteToEdit.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          topic: noteToEdit.topic,
+          subtopic: noteToEdit.subtopic,
+          content: noteToEdit.content,
+        }),
+      });
+
+      if (!res.ok) throw new Error("Failed to update note");
+
+      setIsEditNoteModalOpen(false);
+      setNoteToEdit(null);
+      toast.success("Note updated");
+      fetchNotes();
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setIsUpdatingNote(false);
+    }
+  };
+
+  const handleDeleteNote = async (id: string) => {
+    if (!confirm("Are you sure?")) return;
+
+    try {
+      const res = await fetch(`/api/smart-notes/note/${id}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) throw new Error("Failed to delete");
+      toast.success("Note deleted");
+      fetchNotes();
+    } catch (err: any) {
+      toast.error(err.message);
     }
   };
 
@@ -420,6 +469,10 @@ export function SmartNotesList({ materialId, materialTitle }: SmartNotesListProp
                   note={note} 
                   index={idx} 
                   onCreateMCQ={handlePerNoteMCQ}
+                  onEdit={() => {
+                    setNoteToEdit(note);
+                    setIsEditNoteModalOpen(true);
+                  }}
                 />
               ))}
             </div>
@@ -933,6 +986,72 @@ export function SmartNotesList({ materialId, materialTitle }: SmartNotesListProp
             </div>
           )}
         </div>
+      </Modal>
+
+      {/* Edit Note Modal */}
+      <Modal
+        isOpen={isEditNoteModalOpen}
+        onClose={() => setIsEditNoteModalOpen(false)}
+        title="Edit Smart Note"
+        className="max-w-2xl"
+      >
+        {noteToEdit && (
+          <form onSubmit={handleUpdateNote} className="space-y-4">
+            <div>
+              <label className="block text-xs font-bold text-white/40 uppercase mb-2">Topic</label>
+              <input 
+                type="text" 
+                value={noteToEdit.topic}
+                onChange={(e) => setNoteToEdit({...noteToEdit, topic: e.target.value})}
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500 transition-all"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-white/40 uppercase mb-2">Subtopic</label>
+              <input 
+                type="text" 
+                value={noteToEdit.subtopic || ""}
+                onChange={(e) => setNoteToEdit({...noteToEdit, subtopic: e.target.value})}
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500 transition-all"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-white/40 uppercase mb-2">Content</label>
+              <textarea 
+                rows={6}
+                value={noteToEdit.content}
+                onChange={(e) => setNoteToEdit({...noteToEdit, content: e.target.value})}
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500 transition-all resize-none"
+              />
+            </div>
+            <div className="flex justify-between items-center pt-4">
+              <button
+                type="button"
+                onClick={() => handleDeleteNote(noteToEdit.id)}
+                className="flex items-center gap-2 px-4 py-2 text-red-400 hover:text-red-300 transition-colors font-bold text-sm"
+              >
+                <Trash2 className="h-4 w-4" />
+                <span>Delete Note</span>
+              </button>
+              <div className="flex gap-3">
+                <button 
+                  type="button"
+                  onClick={() => setIsEditNoteModalOpen(false)}
+                  className="px-4 py-2 text-white/50 hover:text-white font-medium text-sm transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isUpdatingNote}
+                  className="flex items-center gap-2 px-6 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold transition-all disabled:opacity-50"
+                >
+                  {isUpdatingNote ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save Changes"}
+                </button>
+              </div>
+            </div>
+          </form>
+        )}
       </Modal>
     </div>
   );

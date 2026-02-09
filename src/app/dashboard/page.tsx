@@ -25,6 +25,9 @@ export default function DashboardPage() {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [classroomToDelete, setClassroomToDelete] = useState<{id: string, name: string} | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [classroomToEdit, setClassroomToEdit] = useState<Classroom | null>(null);
+  const [updating, setUpdating] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -66,6 +69,28 @@ export default function DashboardPage() {
       console.error("Failed to create", error);
     } finally {
       setCreating(false);
+    }
+  };
+
+  const handleUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!classroomToEdit) return;
+    setUpdating(true);
+    try {
+      const res = await fetch(`/api/classrooms/${classroomToEdit.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: classroomToEdit.name, subject: classroomToEdit.subject }),
+      });
+      if (res.ok) {
+        await fetchClassrooms();
+        setEditModalOpen(false);
+        setClassroomToEdit(null);
+      }
+    } catch (error) {
+      console.error("Failed to update", error);
+    } finally {
+      setUpdating(false);
     }
   };
 
@@ -175,6 +200,11 @@ export default function DashboardPage() {
                 >
                    <ClassroomCard 
                      {...classroom} 
+                     onEdit={(e) => {
+                       e.stopPropagation();
+                       setClassroomToEdit(classroom);
+                       setEditModalOpen(true);
+                     }}
                      onDelete={(e) => {
                        e.stopPropagation();
                        setClassroomToDelete({ id: classroom.id, name: classroom.name });
@@ -229,6 +259,52 @@ export default function DashboardPage() {
         </form>
       </Modal>
 
+      <Modal 
+        isOpen={editModalOpen} 
+        onClose={() => setEditModalOpen(false)} 
+        title="Edit Classroom"
+      >
+        {classroomToEdit && (
+          <form onSubmit={handleUpdate} className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-white/60 uppercase">Classroom Name</label>
+              <input 
+                type="text" 
+                required
+                placeholder="e.g. Indian Polity"
+                value={classroomToEdit.name}
+                onChange={(e) => setClassroomToEdit({...classroomToEdit, name: e.target.value})}
+                className="w-full rounded-xl border border-white/10 bg-white/5 p-3 text-white focus:border-indigo-500 focus:outline-none"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-white/60 uppercase">Subject / Category</label>
+              <input 
+                type="text" 
+                required
+                placeholder="e.g. General Studies"
+                value={classroomToEdit.subject}
+                onChange={(e) => setClassroomToEdit({...classroomToEdit, subject: e.target.value})}
+                className="w-full rounded-xl border border-white/10 bg-white/5 p-3 text-white focus:border-indigo-500 focus:outline-none"
+              />
+            </div>
+            <button 
+              disabled={updating}
+              className="w-full mt-4 rounded-xl bg-indigo-600 py-3 font-bold text-white hover:bg-indigo-500 disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {updating ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Updating...
+                </>
+              ) : (
+                "Save Changes"
+              )}
+            </button>
+          </form>
+        )}
+      </Modal>
+
       <Modal
         isOpen={deleteModalOpen}
         onClose={() => !deleting && setDeleteModalOpen(false)}
@@ -273,6 +349,7 @@ export default function DashboardPage() {
     </div>
   );
 }
+
 
 function SidebarLink({ icon: Icon, label, active = false }: { icon: any; label: string; active?: boolean }) {
   return (

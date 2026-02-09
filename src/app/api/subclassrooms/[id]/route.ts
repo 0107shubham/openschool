@@ -3,16 +3,16 @@ import { query } from "@/lib/db";
 
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const { id: classroomId } = await params;
+    const { id: subclassroomId } = await params;
 
-    // Fetch Classroom Details
-    const classroomRes = await query(
-      `SELECT * FROM "Classroom" WHERE id = $1`,
-      [classroomId]
+    // Fetch Subclassroom Details
+    const subclassroomRes = await query(
+      `SELECT * FROM "Subclassroom" WHERE id = $1`,
+      [subclassroomId]
     );
 
-    if (classroomRes.rows.length === 0) {
-      return NextResponse.json({ error: "Classroom not found" }, { status: 404 });
+    if (subclassroomRes.rows.length === 0) {
+      return NextResponse.json({ error: "Subclassroom not found" }, { status: 404 });
     }
 
     // Fetch Materials with MCQ and SmartNote counts
@@ -22,8 +22,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
        (SELECT COUNT(*) FROM "SmartNote" n WHERE n."materialId" = m.id) as "notesCount",
        (SELECT COUNT(*) FROM "SmartNote" n WHERE n."materialId" = m.id AND (n."examRelevance" = 'SSC' OR n."examRelevance" = 'BOTH')) as "sscNotesCount",
        (SELECT COUNT(*) FROM "SmartNote" n WHERE n."materialId" = m.id AND (n."examRelevance" = 'UPSC' OR n."examRelevance" = 'BOTH')) as "upscNotesCount"
-       FROM "Material" m WHERE "classroomId" = $1 ORDER BY subcategory NULLS LAST, "createdAt" DESC`,
-      [classroomId]
+       FROM "Material" m WHERE "subclassroomId" = $1 ORDER BY subcategory NULLS LAST, "createdAt" DESC`,
+      [subclassroomId]
     );
 
     const materials = materialsRes.rows.map(m =>({
@@ -32,7 +32,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     }));
 
     return NextResponse.json({
-      classroom: classroomRes.rows[0],
+      subclassroom: subclassroomRes.rows[0],
       materials: materials
     });
 
@@ -43,7 +43,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const { id: classroomId } = await params;
+    const { id: subclassroomId } = await params;
     const { title, content, subcategory } = await req.json();
 
     if (!title || !content) {
@@ -53,12 +53,24 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     const id = crypto.randomUUID();
     const now = new Date().toISOString();
 
+    // Get classroomId from subclassroom
+    const subclassroomRes = await query(
+      `SELECT "classroomId" FROM "Subclassroom" WHERE id = $1`,
+      [subclassroomId]
+    );
+
+    if (subclassroomRes.rows.length === 0) {
+      return NextResponse.json({ error: "Subclassroom not found" }, { status: 404 });
+    }
+
+    const classroomId = subclassroomRes.rows[0].classroomId;
+
     // Insert Material
     const res = await query(
-      `INSERT INTO "Material" (id, "classroomId", title, "pdfUrl", "rawText", subcategory, "createdAt", "updatedAt")
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      `INSERT INTO "Material" (id, "classroomId", "subclassroomId", title, "pdfUrl", "rawText", subcategory, "createdAt", "updatedAt")
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
        RETURNING *`,
-      [id, classroomId, title, "https://mock.url/placeholder.pdf", content, subcategory || null, now, now]
+      [id, classroomId, subclassroomId, title, "https://mock.url/placeholder.pdf", content, subcategory || null, now, now]
     );
 
     return NextResponse.json(res.rows[0]);
@@ -70,21 +82,20 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
 export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const { id: classroomId } = await params;
+    const { id: subclassroomId } = await params;
 
-    // Delete Classroom
-    // Note: Due to ON DELETE CASCADE in Prisma/Postgres, 
-    // this will automatically delete Materials, SmartNotes, and MCQs.
+    // Delete Subclassroom
+    // Note: Due to ON DELETE CASCADE, this will automatically delete Materials, SmartNotes, and MCQs.
     const res = await query(
-      `DELETE FROM "Classroom" WHERE id = $1 RETURNING *`,
-      [classroomId]
+      `DELETE FROM "Subclassroom" WHERE id = $1 RETURNING *`,
+      [subclassroomId]
     );
 
     if (res.rows.length === 0) {
-      return NextResponse.json({ error: "Classroom not found" }, { status: 404 });
+      return NextResponse.json({ error: "Subclassroom not found" }, { status: 404 });
     }
 
-    return NextResponse.json({ success: true, classroom: res.rows[0] });
+    return NextResponse.json({ success: true, subclassroom: res.rows[0] });
 
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -93,36 +104,36 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const { id: classroomId } = await params;
-    const { name, subject } = await req.json();
+    const { id: subclassroomId } = await params;
+    const { name, description } = await req.json();
 
-    if (!name && !subject) {
-      return NextResponse.json({ error: "At least one field (name or subject) is required" }, { status: 400 });
+    if (!name && description === undefined) {
+      return NextResponse.json({ error: "At least one field (name or description) is required" }, { status: 400 });
     }
 
     const updates = [];
     const values = [];
-    let queryStr = 'UPDATE "Classroom" SET ';
+    let queryStr = 'UPDATE "Subclassroom" SET ';
 
     if (name) {
       values.push(name);
       updates.push(`"name" = $${values.length}`);
     }
-    if (subject) {
-      values.push(subject);
-      updates.push(`"subject" = $${values.length}`);
+    if (description !== undefined) {
+      values.push(description);
+      updates.push(`"description" = $${values.length}`);
     }
 
     values.push(new Date().toISOString());
     updates.push(`"updatedAt" = $${values.length}`);
 
     queryStr += updates.join(", ") + ` WHERE id = $${values.length + 1} RETURNING *`;
-    values.push(classroomId);
+    values.push(subclassroomId);
 
     const res = await query(queryStr, values);
 
     if (res.rows.length === 0) {
-      return NextResponse.json({ error: "Classroom not found" }, { status: 404 });
+      return NextResponse.json({ error: "Subclassroom not found" }, { status: 404 });
     }
 
     return NextResponse.json(res.rows[0]);

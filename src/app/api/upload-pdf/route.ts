@@ -9,14 +9,26 @@ export async function POST(req: Request) {
   try {
     const formData = await req.formData();
     const file = formData.get("file") as File;
-    const classroomId = formData.get("classroomId") as string;
+    const subclassroomId = formData.get("subclassroomId") as string;
     const title = formData.get("title") as string;
     const startPage = parseInt(formData.get("startPage") as string || "1");
     const endPage = parseInt(formData.get("endPage") as string || "5");
 
-    if (!file || !classroomId || !title) {
+    if (!file || !subclassroomId || !title) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
+
+    // Get classroomId from subclassroom
+    const subclassroomRes = await query(
+      `SELECT "classroomId" FROM "Subclassroom" WHERE id = $1`,
+      [subclassroomId]
+    );
+
+    if (subclassroomRes.rows.length === 0) {
+      return NextResponse.json({ error: "Subclassroom not found" }, { status: 404 });
+    }
+
+    const classroomId = subclassroomRes.rows[0].classroomId;
 
     // Convert File to ArrayBuffer
     const arrayBuffer = await file.arrayBuffer();
@@ -61,12 +73,13 @@ export async function POST(req: Request) {
     // Save to DB
     const id = crypto.randomUUID();
     const now = new Date().toISOString();
+    const subcategory = formData.get("subcategory") as string || null;
 
     const res = await query(
-      `INSERT INTO "Material" (id, "classroomId", title, "pdfUrl", "rawText", "createdAt", "updatedAt")
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `INSERT INTO "Material" (id, "classroomId", "subclassroomId", title, "pdfUrl", "rawText", subcategory, "createdAt", "updatedAt")
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
        RETURNING *`,
-      [id, classroomId, title, "https://mock.url/memory-processed-file.pdf", extractedText, now, now]
+      [id, classroomId, subclassroomId, title, "https://mock.url/memory-processed-file.pdf", extractedText, subcategory, now, now]
     );
 
     return NextResponse.json({

@@ -1,6 +1,6 @@
 "use client";
 
-import { Star, BookOpen, Brain, AlertTriangle, Lightbulb } from "lucide-react";
+import { Star, BookOpen, Brain, AlertTriangle, Lightbulb, Edit2 } from "lucide-react";
 import { motion } from "framer-motion";
 
 interface MemoryTechnique {
@@ -25,9 +25,10 @@ interface SmartNoteCardProps {
   note: SmartNote;
   index?: number;
   onCreateMCQ?: (note: SmartNote) => void;
+  onEdit?: (note: SmartNote) => void;
 }
 
-export function SmartNoteCard({ note, index = 0, onCreateMCQ }: SmartNoteCardProps) {
+export function SmartNoteCard({ note, index = 0, onCreateMCQ, onEdit }: SmartNoteCardProps) {
   const getExamBadgeColor = (exam: string) => {
     switch (exam) {
       case "SSC":
@@ -90,15 +91,26 @@ export function SmartNoteCard({ note, index = 0, onCreateMCQ }: SmartNoteCardPro
             </div>
           )}
         </div>
-        {onCreateMCQ && (
-          <button
-            onClick={() => onCreateMCQ(note)}
-            className="p-2 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 rounded-lg transition-colors"
-            title="Generate MCQ from this note"
-          >
-            <Brain className="h-4 w-4" />
-          </button>
-        )}
+        <div className="flex gap-2">
+          {onEdit && (
+            <button
+              onClick={() => onEdit(note)}
+              className="p-2 bg-white/5 hover:bg-white/10 text-white/40 hover:text-white rounded-lg transition-colors"
+              title="Edit Note"
+            >
+              <Edit2 className="h-3.5 w-3.5" />
+            </button>
+          )}
+          {onCreateMCQ && (
+            <button
+              onClick={() => onCreateMCQ(note)}
+              className="p-2 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 rounded-lg transition-colors"
+              title="Generate MCQ from this note"
+            >
+              <Brain className="h-4 w-4" />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Content */}
