@@ -83,11 +83,15 @@ export async function POST(req: Request) {
       // OR if notes were missing for "BOTH" mode
       if (generationType !== "MCQS") {
         for (const note of smartNotesData.notes) {
+          const noteId = crypto.randomUUID();
+          const now = new Date().toISOString();
+
           const res = await query(
-            `INSERT INTO "SmartNote" ("materialId", topic, subtopic, content, "examRelevance", importance, "memoryTechnique", "examTips", "commonMistakes")
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+            `INSERT INTO "SmartNote" (id, "materialId", topic, subtopic, content, "examRelevance", importance, "memoryTechnique", "examTips", "commonMistakes", "createdAt", "updatedAt")
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
              RETURNING *`,
             [
+              noteId,
               materialId,
               note.topic,
               note.subtopic || null,
@@ -96,7 +100,9 @@ export async function POST(req: Request) {
               note.importance,
               JSON.stringify(note.memoryTechnique),
               note.examTips || null,
-              note.commonMistakes || null
+              note.commonMistakes || null,
+              now,
+              now
             ]
           );
           savedNotes.push(res.rows[0]);
@@ -116,11 +122,15 @@ export async function POST(req: Request) {
        if (enhancedData && enhancedData.notes.length > 0) {
           // Save NEW notes
           for (const note of enhancedData.notes) {
+            const noteId = crypto.randomUUID();
+            const now = new Date().toISOString();
+
             const res = await query(
-               `INSERT INTO "SmartNote" ("materialId", topic, subtopic, content, "examRelevance", importance, "memoryTechnique", "examTips", "commonMistakes")
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+               `INSERT INTO "SmartNote" (id, "materialId", topic, subtopic, content, "examRelevance", importance, "memoryTechnique", "examTips", "commonMistakes", "createdAt", "updatedAt")
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
                 RETURNING *`,
                [
+                 noteId,
                  materialId,
                  note.topic,
                  note.subtopic || null,
@@ -129,7 +139,9 @@ export async function POST(req: Request) {
                  note.importance,
                  JSON.stringify(note.memoryTechnique),
                  note.examTips || null,
-                 note.commonMistakes || null
+                 note.commonMistakes || null,
+                 now,
+                 now
                ]
              );
              savedNotes.push(res.rows[0]);
@@ -185,11 +197,15 @@ export async function POST(req: Request) {
           continue;
         }
 
+        const mcqId = crypto.randomUUID();
+        const now = new Date().toISOString();
+
         const res = await query(
-          `INSERT INTO "MCQ" ("materialId", question, options, answer, explanation, level, "pyqContext", "examRelevance", importance, "sourceNote")
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+          `INSERT INTO "MCQ" (id, "materialId", question, options, answer, explanation, level, "pyqContext", "examRelevance", importance, "sourceNote", "createdAt", "updatedAt")
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
            RETURNING *`,
           [
+            mcqId,
             materialId,
             mcq.question,
             mcq.options,
@@ -199,7 +215,9 @@ export async function POST(req: Request) {
             mcq.pyqContext || `${style} style question`,
             mcq.examRelevance || null,
             mcq.importance || null,
-            mcq.sourceNote || null
+            mcq.sourceNote || null,
+            now,
+            now
           ]
         );
         savedMcqs.push(res.rows[0]);

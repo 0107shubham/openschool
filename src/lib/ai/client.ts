@@ -273,7 +273,10 @@ export async function generateSmartNotes(text: string, modelId: string = DEFAULT
       }
     }
 
-    const validNotes = allNotes.filter(n => n && n.concept); // Ensure notes are valid
+    const validNotes = allNotes.filter(n => n && n.topic); // Ensure notes are valid (AI returns 'topic' field)
+    
+    console.log(`✅ Generated ${validNotes.length} valid notes from ${chunkResults.filter(r => r !== null).length} successful chunks`);
+    
     return {
       notes: validNotes,
       summary: {

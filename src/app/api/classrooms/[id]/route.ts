@@ -50,12 +50,15 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       return NextResponse.json({ error: "Title and Content are required" }, { status: 400 });
     }
 
+    const id = crypto.randomUUID();
+    const now = new Date().toISOString();
+
     // Insert Material
     const res = await query(
-      `INSERT INTO "Material" ("classroomId", title, "pdfUrl", "rawText")
-       VALUES ($1, $2, $3, $4)
+      `INSERT INTO "Material" (id, "classroomId", title, "pdfUrl", "rawText", "createdAt", "updatedAt")
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING *`,
-      [classroomId, title, "https://mock.url/placeholder.pdf", content] // Mock PDF URL for now
+      [id, classroomId, title, "https://mock.url/placeholder.pdf", content, now, now] // Mock PDF URL for now
     );
 
     return NextResponse.json(res.rows[0]);

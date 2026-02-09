@@ -59,11 +59,14 @@ export async function POST(req: Request) {
     }
 
     // Save to DB
+    const id = crypto.randomUUID();
+    const now = new Date().toISOString();
+
     const res = await query(
-      `INSERT INTO "Material" ("classroomId", title, "pdfUrl", "rawText")
-       VALUES ($1, $2, $3, $4)
+      `INSERT INTO "Material" (id, "classroomId", title, "pdfUrl", "rawText", "createdAt", "updatedAt")
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING *`,
-      [classroomId, title, "https://mock.url/memory-processed-file.pdf", extractedText]
+      [id, classroomId, title, "https://mock.url/memory-processed-file.pdf", extractedText, now, now]
     );
 
     return NextResponse.json({

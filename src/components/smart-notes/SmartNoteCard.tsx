@@ -83,9 +83,11 @@ export function SmartNoteCard({ note, index = 0, onCreateMCQ }: SmartNoteCardPro
               ))}
             </div>
           </div>
-          <h3 className="font-bold text-white">{note.topic}</h3>
+          <h3 className="font-bold text-lg text-white mb-2">{note.topic}</h3>
           {note.subtopic && (
-            <p className="text-sm font-medium text-indigo-400/90">{note.subtopic}</p>
+            <div className="inline-block mt-1 px-3 py-2 rounded-lg bg-gradient-to-r from-indigo-500/20 to-purple-500/20 border border-indigo-400/30">
+              <p className="text-base font-bold text-indigo-300 leading-relaxed">{note.subtopic}</p>
+            </div>
           )}
         </div>
         {onCreateMCQ && (
