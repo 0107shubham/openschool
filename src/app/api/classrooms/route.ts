@@ -32,9 +32,12 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Name and Subject are required" }, { status: 400 });
     }
 
+    const id = crypto.randomUUID();
+    const now = new Date().toISOString();
+
     const res = await query(
-      `INSERT INTO "Classroom" (name, subject) VALUES ($1, $2) RETURNING *`,
-      [name, subject]
+      `INSERT INTO "Classroom" (id, name, subject, "createdAt", "updatedAt") VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+      [id, name, subject, now, now]
     );
 
     return NextResponse.json(res.rows[0]);
