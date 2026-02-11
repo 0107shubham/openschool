@@ -2,11 +2,12 @@
 
 import { useState, useEffect } from "react";
 import { SmartNoteCard } from "./SmartNoteCard";
-import { Loader2, BookOpen, GraduationCap, FileText, Filter, Target, Sparkles, Plus, Zap, Brain, Edit2, Trash2 } from "lucide-react";
+import { Loader2, BookOpen, GraduationCap, FileText, Filter, Target, Sparkles, Plus, Zap, Brain, Edit2, Trash2, Star, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Modal } from "@/components/ui/Modal";
 import { toast } from "sonner"; 
 import mermaid from "mermaid"; 
+import { DrawingCanvas } from "./DrawingOverlay";
 
 // OpenRouter Supported Models
 const SUPPORTED_MODELS = [
@@ -40,6 +41,7 @@ export function SmartNotesList({ materialId, materialTitle }: SmartNotesListProp
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<"ALL" | "SSC" | "UPSC">("ALL");
   const [viewMode, setViewMode] = useState<"CARDS" | "BOOK">("BOOK");
+  const [isBookDrawingActive, setIsBookDrawingActive] = useState(false);
   
   // Per-Note MCQ Generation State
   const [selectedNote, setSelectedNote] = useState<any>(null);
@@ -73,6 +75,16 @@ export function SmartNotesList({ materialId, materialTitle }: SmartNotesListProp
   const [isEditNoteModalOpen, setIsEditNoteModalOpen] = useState(false);
   const [noteToEdit, setNoteToEdit] = useState<any>(null);
   const [isUpdatingNote, setIsUpdatingNote] = useState(false);
+
+  // Manual Add State
+  const [isAddingNote, setIsAddingNote] = useState(false);
+  const [newNote, setNewNote] = useState({
+    topic: "",
+    subtopic: "",
+    content: "",
+    examRelevance: "BOTH" as "SSC" | "UPSC" | "BOTH",
+    importance: 3
+  });
 
   useEffect(() => {
     mermaid.initialize({ startOnLoad: true, theme: 'dark' });
@@ -158,6 +170,40 @@ export function SmartNotesList({ materialId, materialTitle }: SmartNotesListProp
       fetchNotes();
     } catch (err: any) {
       toast.error(err.message);
+    }
+  };
+
+  const handleManualAdd = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newNote.topic || !newNote.content) {
+      toast.error("Topic and Content are required");
+      return;
+    }
+
+    try {
+      setIsGenerating(true);
+      const res = await fetch(`/api/smart-notes/${materialId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newNote),
+      });
+
+      if (!res.ok) throw new Error("Failed to add note");
+
+      toast.success("Note added manually!");
+      setNewNote({
+        topic: "",
+        subtopic: "",
+        content: "",
+        examRelevance: "BOTH",
+        importance: 3
+      });
+      setIsAddingNote(false);
+      fetchNotes();
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setIsGenerating(false);
     }
   };
 
@@ -378,26 +424,37 @@ export function SmartNotesList({ materialId, materialTitle }: SmartNotesListProp
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-bold text-white">{materialTitle}</h2>
           <div className="flex gap-2">
-             <button
+            <button
               onClick={() => setIsEnhanceModalOpen(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-lg font-bold transition-all shadow-lg shadow-purple-500/20"
+              className="flex items-center gap-2 px-3 py-1.5 bg-purple-600 hover:bg-purple-500 text-white rounded-lg font-black uppercase tracking-widest text-[10px] transition-all shadow-lg shadow-purple-500/20"
             >
-              <Zap className="h-4 w-4" />
-              <span>Add/Enhance Notes</span>
+              <Zap className="h-3 w-3" />
+              <span>Add/Enhance</span>
             </button>
             <button
               onClick={() => setIsFocusModalOpen(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-bold transition-all shadow-lg shadow-indigo-500/20"
+              className="flex items-center gap-2 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-black uppercase tracking-widest text-[10px] transition-all shadow-lg shadow-indigo-500/20"
             >
-              <Target className="h-4 w-4" />
+              <Target className="h-3 w-3" />
               <span>Focused MCQ</span>
             </button>
             <button
               onClick={() => setIsMindMapModalOpen(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-pink-600 hover:bg-pink-500 text-white rounded-lg font-bold transition-all shadow-lg shadow-pink-500/20"
+              className="flex items-center gap-2 px-3 py-1.5 bg-pink-600 hover:bg-pink-500 text-white rounded-lg font-black uppercase tracking-widest text-[10px] transition-all shadow-lg shadow-pink-500/20"
             >
-              <Brain className="h-4 w-4" />
+              <Brain className="h-3 w-3" />
               <span>Mind Map</span>
+            </button>
+            <button
+              onClick={() => setIsAddingNote(!isAddingNote)}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg font-black uppercase tracking-widest text-[10px] transition-all shadow-lg ${
+                isAddingNote 
+                ? "bg-rose-500 text-white shadow-rose-500/20" 
+                : "bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-500/20"
+              }`}
+            >
+              {isAddingNote ? <X className="h-3 w-3" /> : <Plus className="h-3 w-3" />}
+              <span>{isAddingNote ? "Cancel" : "Manual Note"}</span>
             </button>
           </div>
         </div>
@@ -424,6 +481,122 @@ export function SmartNotesList({ materialId, materialTitle }: SmartNotesListProp
           </div>
         </div>
       )}
+
+      {/* Manual Add Form */}
+      <AnimatePresence>
+        {isAddingNote && (
+          <motion.div
+            initial={{ opacity: 0, height: 0, marginBottom: 0 }}
+            animate={{ opacity: 1, height: "auto", marginBottom: 32 }}
+            exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+            className="overflow-hidden"
+          >
+            <div className="bg-[#1A1A1A] border border-emerald-500/20 rounded-3xl p-8 shadow-2xl shadow-emerald-500/5">
+              <div className="flex items-center gap-3 mb-6">
+                 <div className="p-2 bg-emerald-500/10 rounded-lg">
+                    <Plus className="h-5 w-5 text-emerald-400" />
+                 </div>
+                 <h3 className="text-xl font-black text-white uppercase tracking-tight">Manual Smart Note</h3>
+              </div>
+              
+              <form onSubmit={handleManualAdd} className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-[10px] font-black text-white/30 uppercase tracking-[0.2em] mb-2">Topic</label>
+                    <input 
+                      type="text" 
+                      value={newNote.topic}
+                      onChange={(e) => setNewNote({...newNote, topic: e.target.value})}
+                      placeholder="e.g. Jain Architecture"
+                      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-4 text-white focus:outline-none focus:border-emerald-500 transition-all font-medium placeholder:text-white/10"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black text-white/30 uppercase tracking-[0.2em] mb-2">Subtopic</label>
+                    <input 
+                      type="text" 
+                      value={newNote.subtopic}
+                      onChange={(e) => setNewNote({...newNote, subtopic: e.target.value})}
+                      placeholder="e.g. Important Jain Places"
+                      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-4 text-white focus:outline-none focus:border-emerald-500 transition-all font-medium placeholder:text-white/10"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-black text-white/30 uppercase tracking-[0.2em] mb-2">Content (Use → for pointers)</label>
+                  <textarea 
+                    rows={6}
+                    value={newNote.content}
+                    onChange={(e) => setNewNote({...newNote, content: e.target.value})}
+                    placeholder="→ Pointer 1&#10;→ Pointer 2"
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-4 text-white focus:outline-none focus:border-emerald-500 transition-all font-medium resize-none leading-relaxed placeholder:text-white/10"
+                  />
+                </div>
+
+                <div className="flex flex-wrap items-center justify-between gap-6 pt-6 border-t border-white/5">
+                  <div className="flex items-center gap-6">
+                     <div>
+                        <label className="block text-[10px] font-black text-white/20 uppercase tracking-[0.2em] mb-2">Exam Relevance</label>
+                        <div className="flex gap-2">
+                           {(["SSC", "UPSC", "BOTH"] as const).map(rel => (
+                              <button
+                                key={rel}
+                                type="button"
+                                onClick={() => setNewNote({...newNote, examRelevance: rel})}
+                                className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider border transition-all ${
+                                   newNote.examRelevance === rel 
+                                   ? "bg-emerald-500/20 border-emerald-500 text-emerald-400" 
+                                   : "bg-white/5 border-white/10 text-white/40"
+                                }`}
+                              >
+                                 {rel}
+                              </button>
+                           ))}
+                        </div>
+                     </div>
+                     <div>
+                        <label className="block text-[10px] font-black text-white/20 uppercase tracking-[0.2em] mb-2">Importance</label>
+                        <div className="flex items-center gap-1">
+                           {[1,2,3,4,5].map(imp => (
+                              <button
+                                key={imp}
+                                type="button"
+                                onClick={() => setNewNote({...newNote, importance: imp})}
+                                className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${
+                                   newNote.importance >= imp 
+                                   ? "text-amber-400" 
+                                   : "text-white/10"
+                                }`}
+                              >
+                                 <Star className={`h-4 w-4 ${newNote.importance >= imp ? "fill-amber-400" : ""}`} />
+                              </button>
+                           ))}
+                        </div>
+                     </div>
+                  </div>
+                  <div className="flex gap-4">
+                    <button 
+                      type="button"
+                      onClick={() => setIsAddingNote(false)}
+                      className="px-6 py-3 text-white/40 hover:text-white font-black uppercase tracking-widest text-[10px] transition-all"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={isGenerating}
+                      className="flex items-center gap-3 px-10 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-black uppercase tracking-widest text-[10px] shadow-xl shadow-emerald-500/20 disabled:opacity-50 transition-all"
+                    >
+                      {isGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Plus className="h-4 w-4" /> Save Note</>}
+                    </button>
+                  </div>
+                </div>
+              </form>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Filter Tabs */}
       <div className="flex gap-2 border-b border-white/10 pb-4">
@@ -478,13 +651,18 @@ export function SmartNotesList({ materialId, materialTitle }: SmartNotesListProp
       {/* Notes by Topic */}
       <div className="space-y-8">
         {viewMode === "BOOK" ? (
-              <div className="bg-[#FCFCFA] rounded-[3rem] p-10 md:p-16 border border-black/5 shadow-xl relative overflow-hidden min-h-[500px]">
-                {/* Book spine decoration */}
-                <div className="absolute top-0 left-0 w-2.5 bg-gradient-to-b from-amber-200/40 via-orange-200/40 to-amber-200/40 h-full" />
-                <div className="absolute top-0 left-2.5 w-[1px] bg-black/5 h-full" />
-                
-                {/* Texture */}
-                <div className="absolute inset-0 opacity-[0.05] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/natural-paper.png')]" />
+              <DrawingCanvas 
+                isActive={isBookDrawingActive} 
+                onToggle={() => setIsBookDrawingActive(!isBookDrawingActive)}
+                className="min-h-[500px]"
+              >
+                <div className="bg-[#FCFCFA] rounded-[3rem] p-10 md:p-16 border border-black/5 shadow-xl relative overflow-hidden h-full">
+                  {/* Book spine decoration */}
+                  <div className="absolute top-0 left-0 w-2.5 bg-gradient-to-b from-amber-200/40 via-orange-200/40 to-amber-200/40 h-full" />
+                  <div className="absolute top-0 left-2.5 w-[1px] bg-black/5 h-full" />
+                  
+                  {/* Texture */}
+                  <div className="absolute inset-0 opacity-[0.05] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/natural-paper.png')]" />
 
                 {Object.entries(byTopic).map(([topic, topicNotes]) => (
                     <div key={topic} className="mb-24 last:mb-0 relative z-10">
@@ -598,6 +776,17 @@ export function SmartNotesList({ materialId, materialTitle }: SmartNotesListProp
                                     </div>
                                 </motion.div>
                             ))}
+                            <button 
+                                onClick={() => {
+                                    setNewNote({ ...newNote, topic: topic });
+                                    setIsAddingNote(true);
+                                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                                }}
+                                className="w-full py-4 border-2 border-dashed border-black/5 rounded-2xl text-black/20 hover:text-emerald-600 hover:border-emerald-500/30 hover:bg-emerald-500/5 transition-all font-black uppercase tracking-widest text-[10px] flex items-center justify-center gap-2 mt-8"
+                            >
+                                <Plus className="h-4 w-4" />
+                                Add Note to "{topic}"
+                            </button>
                         </div>
                     </div>
                 ))}
@@ -608,7 +797,8 @@ export function SmartNotesList({ materialId, materialTitle }: SmartNotesListProp
                     <Sparkles className="h-10 w-10 mx-auto text-amber-500" />
                     <p className="text-xs font-black uppercase tracking-[0.4em] text-gray-500 mt-4">Closed Module Knowledge Base</p>
                 </div>
-             </div>
+              </div>
+            </DrawingCanvas>
         ) : (
           Object.entries(byTopic).map(([topic, topicNotes]) => (
             <div key={topic}>
@@ -628,8 +818,20 @@ export function SmartNotesList({ materialId, materialTitle }: SmartNotesListProp
                       setNoteToEdit(note);
                       setIsEditNoteModalOpen(true);
                     }}
+                    onDelete={handleDeleteNote}
                   />
                 ))}
+                <button 
+                    onClick={() => {
+                        setNewNote({ ...newNote, topic: topic });
+                        setIsAddingNote(true);
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
+                    className="w-full py-10 border-2 border-dashed border-white/10 rounded-3xl text-white/20 hover:text-emerald-400 hover:border-emerald-500/30 hover:bg-emerald-500/5 transition-all font-black uppercase tracking-widest text-[11px] flex flex-col items-center justify-center gap-3 mt-4"
+                >
+                    <Plus className="h-6 w-6" />
+                    Add Note to "{topic}"
+                </button>
               </div>
             </div>
           ))

@@ -69,3 +69,38 @@ export async function GET(req: Request, { params }: { params: Promise<{ material
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
+
+export async function POST(req: Request, { params }: { params: Promise<{ materialId: string }> }) {
+  try {
+    const { materialId } = await params;
+    const { topic, subtopic, content, examRelevance, importance } = await req.json();
+
+    if (!topic || !content) {
+      return NextResponse.json({ error: "Topic and content are required" }, { status: 400 });
+    }
+
+    const res = await query(
+      `INSERT INTO "SmartNote" 
+       ("id", "topic", "subtopic", "content", "materialId", "examRelevance", "importance", "memoryTechnique", "createdAt", "updatedAt") 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) 
+       RETURNING *`,
+      [
+        crypto.randomUUID(),
+        topic,
+        subtopic || "",
+        content,
+        materialId,
+        examRelevance || "BOTH",
+        importance || 3,
+        JSON.stringify({}),
+        new Date().toISOString(),
+        new Date().toISOString()
+      ]
+    );
+
+    return NextResponse.json(res.rows[0]);
+  } catch (error: any) {
+    console.error("Manual Note Creation Error:", error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
