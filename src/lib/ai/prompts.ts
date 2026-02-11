@@ -9,7 +9,7 @@ CRITICAL RULES:
 5. GRANULARITY: Combine related facts ONLY if within word limit.
 
 CONTENT STYLE:
-- Hinglish mandatory: English for terms/dates, Hindi (Devanagari) for explanation.
+- Hinglish mandatory: English for terms/dates/names/keywords, Hindi (Devanagari) for explanation.
 - Bold **Rulers, Years, Reforms, Battles, Books, Buildings**.
 - No filler. Every word must aid revision.
 - Use bullets/headings inside content where helpful.
@@ -29,18 +29,49 @@ JSON FORMAT:
       "subtopic": "Specific event/person",
       "content": "20–30 words Hinglish content",
       "examRelevance": "SSC" | "UPSC" | "BOTH",
-      "importance": 1-5,
-      "memoryTechnique": {
-        "type": "Mnemonic" | "Acronym" | "Story" | "Visual" | "Rhyme" | "Association",
-        "technique": "Memory aid",
-        "explanation": "Hinglish explanation"
-      }
+      "importance": 1-5
     }
   ],
   "summary": {
     "totalConcepts": 0,
     "keyTopics": []
   }
+}
+
+SOURCE MATERIAL:
+"""
+${text}
+"""
+`;
+
+export const SSC_FACT_CHRONO_PROMPT = (text: string, topicName: string = "the topic") => `
+You are an SSC Exam Specialist.
+
+Create structured, chronological notes for "${topicName}" using the provided material.
+
+DESIGN & FORMAT RULES:
+- Format: Pointer-wise only.
+- Language: Hinglish (Hindi narrative in Devanagari script, but all technical terms, names, years, and original keywords MUST be in English script).
+  - Example: उन्होंने **Nagalapuram** city बसाई। **Ashtadiggajas** को patronage दिया।
+- Pointers: Each point should be balanced (not too short, not a paragraph). Aim for 1.5 - 2 lines.
+- Chronology: Maintain a strict timeline from oldest to newest events.
+
+CONTENT DEPTH:
+- If keywords are provided, expand them into complete factual points.
+- Automatically add "Who, When, Where" for every entity.
+- Value Addition: Add critical information based on SSC Previous Year Questions (PYQs) trends (e.g. specific titles, contemporary rulers, associated monuments and their styles).
+
+OUTPUT JSON STRUCTURE:
+{
+  "notes": [
+    {
+      "topic": "${topicName}",
+      "subtopic": "Logical Phase Name (Chronological)",
+      "content": "→ Pointer 1\n→ Pointer 2\n→ Pointer 3",
+      "examRelevance": "SSC",
+      "importance": 1-5
+    }
+  ]
 }
 
 SOURCE MATERIAL:
@@ -125,12 +156,7 @@ JSON FORMAT:
       "subtopic": "Specific Aspect",
       "content": "Content based on style...",
       "examRelevance": "${style === 'BOTH' ? 'BOTH' : style}",
-      "importance": 5,
-      "memoryTechnique": {
-        "type": "Mnemonic",
-        "technique": "...",
-        "explanation": "..."
-      }
+      "importance": 5
     }
   ],
   "summary": {
@@ -220,4 +246,160 @@ ROOT TOPIC
 │
 └── Category 2
     └── Detail C
+`;
+
+export const UPSC_RICH_NOTES_PROMPT = (text: string, topicName: string = "the topic") => `
+You are a senior UPSC/PSC mentor.
+
+Create deeply detailed, fact-rich, exam-oriented notes on "${topicName}" using the SOURCE MATERIAL.
+
+Language:
+- Write in Hinglish (Hindi + English mix in English script).
+- Conceptual but dense.
+- Pointer format only.
+- No paragraph writing.
+
+Content Depth:
+- Add maximum relevant facts, dates, figures, technical terms, and regional variations.
+- Maintain strict chronological flow.
+- Focus on high-yield exam areas.
+
+INSTRUCTIONS:
+You must break the content into these 9 SPECIFIC sections and return them as separate note objects in the 'notes' array:
+
+1. Background & Duration
+   → Exact time span (India specific + global comparison)
+   → Total duration and significance
+   → Climatic phases (if relevant)
+
+2. Detailed Chronological Timeline
+   → Period-wise classification
+   → Regional differences
+   → Tool types (clear distinction)
+   → Major developments
+
+3. Important Archaeological Sites
+   → Site name – Location – Period – Key findings
+   → Site-period matching clarity
+
+4. Technology & Economy
+   → Tool evolution
+   → Subsistence patterns
+   → Agriculture / Domestication / Pottery / Metallurgy links
+
+5. Art & Culture
+   → Rock art sites
+   → Themes
+   → Cultural interpretation
+
+6. Scientific & Dating Methods
+   → Carbon dating
+   → Stratigraphy
+   → Thermoluminescence
+   → Relevance in Indian context
+
+7. Regional Variations
+   → North-West, Central India, South India, North-East
+
+8. Transition Analysis
+   → Climate role, Technological shifts, Social changes
+
+9. High-Yield Revision Zone
+   → Chronology traps, Tool classification confusion, Site matching traps, Frequently mixed concepts
+
+JSON RULES:
+- Return ONLY valid JSON.
+- Root key: "notes".
+- Each note MUST have: "topic", "subtopic" (from the list above), "content" (the pointers), "examRelevance" (set to "UPSC"), "importance" (1-5).
+- "content" MUST be structured pointers using arrows (→) and bullets.
+
+SOURCE MATERIAL:
+"""
+${text}
+"""
+`;
+
+export const UPSC_MCQ_PROMPT = (notes: string, topicName: string = "the topic") => `
+You are a UPSC/PSC examiner.
+
+Create 15 high-quality MCQs on the topic: "${topicName}" based on the provided SMART NOTES.
+
+Follow these rules strictly:
+
+1. Language:
+   - Questions must be in English only.
+   - UPSC standard difficulty (Conceptual + analytical).
+
+2. Question Pattern:
+   - Statement based (1, 2, 3 correct), Assertion-Reason, Match the following, Chronological order.
+   - Multi-dimensional linking.
+
+3. Distractors:
+   - Options must be tricky but logical. Avoid obvious elimination.
+
+4. Explanations:
+   - Provide detailed explanation for each answer IN HINGLISH.
+   - Explain why wrong options are wrong.
+
+5. Trap Concepts:
+   - After 15 MCQs, add 3 "Most Dangerous Trap Concepts".
+
+JSON FORMAT:
+{
+  "questions": [
+    {
+      "question": "...",
+      "options": ["A", "B", "C", "D"],
+      "answer": "A",
+      "explanation": "Detailed Hinglish explanation + why others are wrong",
+      "level": "Hard",
+      "examRelevance": "UPSC"
+    }
+  ],
+  "trapConcepts": [
+    {
+      "topic": "Trap Concept 1",
+      "content": "..."
+    }
+  ]
+}
+
+SMART NOTES:
+"""
+${notes}
+"""
+`;
+
+export const UPSC_KEYWORD_ENGINE = (text: string, topicName: string = "the topic") => `
+You are a UPSC Senior Mentor.
+
+Transform the provided keywords/material into highly structured, analytical, and chronological notes on "${topicName}".
+
+GUIDELINES:
+- Flow: Maintain clear chronological or conceptual progression.
+- Style: Pointers only. Each point must be meaningful and balanced (approx 2 lines).
+- Language: Hindi sentence structure (Devanagari script). HOWEVER, all technical terms, entities, and original input keywords MUST ALWAYS be in English script.
+
+CONTENT DEPTH:
+- Expansion: Treat keywords as hooks; expand them into dense, fact-rich analysis.
+- Value Addition: Integrate missing but high-yield facts based on UPSC Mains/Prelims trends (e.g., historical significance, modern relevance, administrative links).
+- Sub-topics: Create logical divisions (e.g., Origins, Expansion, Decline, Impact).
+
+JSON STRUCTURE:
+{
+  "notes": [
+    {
+      "topic": "${topicName}",
+      "subtopic": "Topical/Chronological Section",
+      "content": "→ Pointer covering depth/analysis\n→ Secondary pointer",
+      "examRelevance": "UPSC",
+      "importance": 1-5
+    }
+  ]
+}
+
+SOURCE MATERIAL:
+"""
+${text}
+"""
 `;

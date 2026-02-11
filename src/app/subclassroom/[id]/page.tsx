@@ -75,6 +75,7 @@ export default function SubclassroomPage() {
   const [selectedProviderType, setSelectedProviderType] = useState<AIProvider>("OpenRouter");
   const [selectedAccount, setSelectedAccount] = useState(1);
   const [generationType, setGenerationType] = useState<"BOTH" | "NOTES" | "MCQS">("BOTH");
+  const [examType, setExamType] = useState<"SSC" | "UPSC">("SSC");
   
   // Notes Modal State
   const [notesModalOpen, setNotesModalOpen] = useState(false);
@@ -278,7 +279,8 @@ export default function SubclassroomPage() {
               materialId: data.id, 
               modelId: selectedModel,
               accountIndex: selectedAccount,
-              generationType: generationType
+              generationType: generationType,
+              examType: examType
             }),
           });
           
@@ -335,7 +337,7 @@ export default function SubclassroomPage() {
       const res = await fetch("/api/generate-mcq", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ materialId, modelId: selectedModel, accountIndex: selectedAccount, generationType: "MCQS" }),
+        body: JSON.stringify({ materialId, modelId: selectedModel, accountIndex: selectedAccount, generationType: "MCQS", examType: examType }),
       });
       
       const data = await res.json();
@@ -481,72 +483,98 @@ export default function SubclassroomPage() {
         </div>
 
         <form onSubmit={handleAddMaterial} className="space-y-4">
-            <div className="space-y-2">
-                <label className="text-xs font-bold text-white/60 uppercase">Title</label>
-                <input type="text" required placeholder="e.g. Intro to Derivatives" value={newMaterial.title} onChange={(e) => setNewMaterial({...newMaterial, title: e.target.value})} className="w-full rounded-xl border border-white/10 bg-white/5 p-3 text-white focus:border-indigo-500 focus:outline-none" />
-            </div>
-
-            <div className="space-y-2">
-                <label className="text-xs font-bold text-white/60 uppercase">Generation Type</label>
-                <div className="grid grid-cols-3 gap-2">
-                    {(['BOTH', 'NOTES', 'MCQS'] as const).map((type) => (
-                        <button
-                            key={type}
-                            type="button"
-                            onClick={() => setGenerationType(type)}
-                            className={`px-3 py-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all border ${
-                                generationType === type 
-                                ? 'bg-indigo-600 border-indigo-500 text-white' 
-                                : 'bg-white/5 border-white/10 text-white/40 hover:text-white'
-                            }`}
-                        >
-                            {type}
-                        </button>
-                    ))}
-                </div>
-            </div>
-
-            <div className="space-y-2">
-                <label className="text-xs font-bold text-white/60 uppercase flex items-center gap-2"><Sparkles className="h-3 w-3" /> AI Provider</label>
-                <select value={selectedProviderType === "OpenRouter" ? selectedAccount : "NVIDIA"} onChange={(e) => {
-                    const val = e.target.value;
-                    if (val === "NVIDIA") { setSelectedProviderType("NVIDIA"); const m = SUPPORTED_MODELS.find(m => m.provider === "NVIDIA"); if (m) setSelectedModel(m.id); } 
-                    else { setSelectedProviderType("OpenRouter"); setSelectedAccount(Number(val)); const m = SUPPORTED_MODELS.find(m => m.provider === "OpenRouter"); if (m) setSelectedModel(m.id); }
-                }} className="w-full rounded-xl border border-white/10 bg-white/5 p-3 text-black font-bold">
-                  <option value={1}>Account 1</option>
-                  <option value={2}>Account 2</option>
-                  <option value="NVIDIA">NVIDIA</option>
-                </select>
-            </div>
-
-            <div className="space-y-2">
-                <label className="text-xs font-bold text-white/60 uppercase flex items-center gap-2"><Brain className="h-3 w-3" /> AI Intelligence</label>
-                <select value={selectedModel} onChange={(e) => setSelectedModel(e.target.value)} className="w-full rounded-xl border border-white/10 bg-white/5 p-3 text-black font-bold">
-                  {SUPPORTED_MODELS.filter(m => m.provider === selectedProviderType).map(model => <option key={model.id} value={model.id}>{model.name}</option>)}
-                </select>
-            </div>
-
-            {mode === 'text' ? (
+            <div className="max-h-[65vh] overflow-y-auto pr-2 space-y-4 custom-scrollbar">
                 <div className="space-y-2">
-                    <label className="text-xs font-bold text-white/60 uppercase">Content</label>
-                    <textarea required rows={8} placeholder="Paste text here..." value={newMaterial.content} onChange={(e) => setNewMaterial({...newMaterial, content: e.target.value})} className="w-full rounded-xl border border-white/10 bg-white/5 p-3 text-white text-sm resize-none" />
+                    <label className="text-xs font-bold text-white/60 uppercase">Title</label>
+                    <input type="text" required placeholder="e.g. Intro to Derivatives" value={newMaterial.title} onChange={(e) => setNewMaterial({...newMaterial, title: e.target.value})} className="w-full rounded-xl border border-white/10 bg-white/5 p-3 text-white focus:border-indigo-500 focus:outline-none" />
                 </div>
-            ) : (
-                <div className="flex flex-col gap-6">
-                    <div className="space-y-4">
-                        <label className="text-xs font-bold text-white/60 uppercase">PDF File</label>
-                        <div className="relative rounded-xl border-2 border-dashed border-white/10 bg-white/5 p-6 text-center">
-                            <input type="file" accept=".pdf" required onChange={handleFileChange} className="absolute inset-0 cursor-pointer opacity-0" />
-                            {file ? <p className="text-indigo-400 font-bold">{file.name}</p> : <p className="text-white/40">Drop PDF here</p>}
-                        </div>
-                        <div className="space-y-2">
-                            <label className="text-xs font-bold text-white/60 uppercase">Pages (e.g. 1-5)</label>
-                            <input type="text" value={pageSelection} onChange={(e) => setPageSelection(e.target.value)} className="w-full rounded-xl border border-white/10 bg-white/5 p-3 text-white" />
-                            <button type="button" onClick={handleExtractPreview} disabled={isExtracting || !file} className="w-full rounded-lg bg-white/5 border border-white/10 py-2 text-xs font-bold text-indigo-400">PREVIEW PAGES</button>
-                        </div>
+
+                <div className="space-y-2">
+                    <label className="text-xs font-bold text-white/60 uppercase">Generation Type</label>
+                    <div className="grid grid-cols-3 gap-2">
+                        {(['BOTH', 'NOTES', 'MCQS'] as const).map((type) => (
+                            <button
+                                key={type}
+                                type="button"
+                                onClick={() => setGenerationType(type)}
+                                className={`px-3 py-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all border ${
+                                    generationType === type 
+                                    ? 'bg-indigo-600 border-indigo-500 text-white' 
+                                    : 'bg-white/5 border-white/10 text-white/40 hover:text-white'
+                                }`}
+                            >
+                                {type}
+                            </button>
+                        ))}
                     </div>
                 </div>
-            )}
+
+                <div className="space-y-2">
+                    <label className="text-xs font-bold text-white/60 uppercase">Target Exam</label>
+                    <div className="grid grid-cols-2 gap-2">
+                        {(['SSC', 'UPSC'] as const).map((type) => (
+                            <button
+                                key={type}
+                                type="button"
+                                onClick={() => setExamType(type)}
+                                className={`px-3 py-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all border ${
+                                    examType === type 
+                                    ? 'bg-indigo-600 border-indigo-500 text-white' 
+                                    : 'bg-white/5 border-white/10 text-white/40 hover:text-white'
+                                }`}
+                            >
+                                {type}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                <div className="space-y-2">
+                    <label className="text-xs font-bold text-white/60 uppercase flex items-center gap-2"><Sparkles className="h-3 w-3" /> AI Provider</label>
+                    <select value={selectedProviderType === "OpenRouter" ? selectedAccount : "NVIDIA"} onChange={(e) => {
+                        const val = e.target.value;
+                        if (val === "NVIDIA") { setSelectedProviderType("NVIDIA"); const m = SUPPORTED_MODELS.find(m => m.provider === "NVIDIA"); if (m) setSelectedModel(m.id); } 
+                        else { setSelectedProviderType("OpenRouter"); setSelectedAccount(Number(val)); const m = SUPPORTED_MODELS.find(m => m.provider === "OpenRouter"); if (m) setSelectedModel(m.id); }
+                    }} className="w-full rounded-xl border border-white/10 bg-[#0A0A0A] p-3 text-white font-bold focus:border-indigo-500 focus:outline-none appearance-none">
+                      <option value={1} className="bg-[#0A0A0A] text-white">Account 1</option>
+                      <option value={2} className="bg-[#0A0A0A] text-white">Account 2</option>
+                      <option value="NVIDIA" className="bg-[#0A0A0A] text-white">NVIDIA</option>
+                    </select>
+                </div>
+
+                <div className="space-y-2">
+                    <label className="text-xs font-bold text-white/60 uppercase flex items-center gap-2"><Brain className="h-3 w-3" /> AI Intelligence</label>
+                    <select value={selectedModel} onChange={(e) => setSelectedModel(e.target.value)} className="w-full rounded-xl border border-white/10 bg-[#0A0A0A] p-3 text-white font-bold focus:border-indigo-500 focus:outline-none appearance-none">
+                      {SUPPORTED_MODELS.filter(m => m.provider === selectedProviderType).map(model => (
+                        <option key={model.id} value={model.id} className="bg-[#0A0A0A] text-white">
+                          {model.name}
+                        </option>
+                      ))}
+                    </select>
+                </div>
+
+                {mode === 'text' ? (
+                    <div className="space-y-2">
+                        <label className="text-xs font-bold text-white/60 uppercase">Content</label>
+                        <textarea required rows={8} placeholder="Paste text here..." value={newMaterial.content} onChange={(e) => setNewMaterial({...newMaterial, content: e.target.value})} className="w-full rounded-xl border border-white/10 bg-white/5 p-3 text-white text-sm resize-none" />
+                    </div>
+                ) : (
+                    <div className="flex flex-col gap-6">
+                        <div className="space-y-4">
+                            <label className="text-xs font-bold text-white/60 uppercase">PDF File</label>
+                            <div className="relative rounded-xl border-2 border-dashed border-white/10 bg-white/5 p-6 text-center">
+                                <input type="file" accept=".pdf" required onChange={handleFileChange} className="absolute inset-0 cursor-pointer opacity-0" />
+                                {file ? <p className="text-indigo-400 font-bold">{file.name}</p> : <p className="text-white/40">Drop PDF here</p>}
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-xs font-bold text-white/60 uppercase">Pages (e.g. 1-5)</label>
+                                <input type="text" value={pageSelection} onChange={(e) => setPageSelection(e.target.value)} className="w-full rounded-xl border border-white/10 bg-white/5 p-3 text-white" />
+                                <button type="button" onClick={handleExtractPreview} disabled={isExtracting || !file} className="w-full rounded-lg bg-white/5 border border-white/10 py-2 text-xs font-bold text-indigo-400">PREVIEW PAGES</button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </div>
 
             {generatingFor && <div className="p-4 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-sm text-indigo-300">{generationStatus}</div>}
 
@@ -573,17 +601,21 @@ export default function SubclassroomPage() {
                       const val = e.target.value;
                       if (val === "NVIDIA") { setSelectedProviderType("NVIDIA"); const m = SUPPORTED_MODELS.find(m => m.provider === "NVIDIA"); if (m) setSelectedModel(m.id); } 
                       else { setSelectedProviderType("OpenRouter"); setSelectedAccount(Number(val)); const m = SUPPORTED_MODELS.find(m => m.provider === "OpenRouter"); if (m) setSelectedModel(m.id); }
-                  }} className="w-full rounded-xl border border-white/10 bg-white/5 p-3 text-black font-bold">
-                    <option value={1}>Account 1 (OpenRouter)</option>
-                    <option value={2}>Account 2 (OpenRouter)</option>
-                    <option value="NVIDIA">NVIDIA API</option>
+                  }} className="w-full rounded-xl border border-white/10 bg-[#0A0A0A] p-3 text-white font-bold focus:border-indigo-500 focus:outline-none appearance-none">
+                    <option value={1} className="bg-[#0A0A0A] text-white">Account 1 (OpenRouter)</option>
+                    <option value={2} className="bg-[#0A0A0A] text-white">Account 2 (OpenRouter)</option>
+                    <option value="NVIDIA" className="bg-[#0A0A0A] text-white">NVIDIA API</option>
                   </select>
               </div>
 
               <div className="space-y-2">
                   <label className="text-xs font-bold text-white/60 uppercase flex items-center gap-2"><Brain className="h-3 w-3" /> AI Intelligence</label>
-                  <select value={selectedModel} onChange={(e) => setSelectedModel(e.target.value)} className="w-full rounded-xl border border-white/10 bg-white/5 p-3 text-black font-bold">
-                    {SUPPORTED_MODELS.filter(m => m.provider === selectedProviderType).map(model => <option key={model.id} value={model.id}>{model.name}</option>)}
+                  <select value={selectedModel} onChange={(e) => setSelectedModel(e.target.value)} className="w-full rounded-xl border border-white/10 bg-[#0A0A0A] p-3 text-white font-bold focus:border-indigo-500 focus:outline-none appearance-none">
+                    {SUPPORTED_MODELS.filter(m => m.provider === selectedProviderType).map(model => (
+                      <option key={model.id} value={model.id} className="bg-[#0A0A0A] text-white">
+                        {model.name}
+                      </option>
+                    ))}
                   </select>
               </div>
           </div>

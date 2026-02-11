@@ -1,5 +1,15 @@
 import OpenAI from "openai";
-import { SMART_NOTES_PROMPT, MCQ_FROM_NOTES_PROMPT, ENHANCE_NOTES_PROMPT, MIND_MAP_PROMPT, TEXT_TREE_PROMPT } from "./prompts";
+import { 
+  SMART_NOTES_PROMPT, 
+  SSC_FACT_CHRONO_PROMPT,
+  MCQ_FROM_NOTES_PROMPT, 
+  ENHANCE_NOTES_PROMPT, 
+  MIND_MAP_PROMPT, 
+  TEXT_TREE_PROMPT, 
+  UPSC_RICH_NOTES_PROMPT,
+  UPSC_KEYWORD_ENGINE,
+  UPSC_MCQ_PROMPT
+} from "./prompts";
 
 // Providers
 export type AIProvider = "OpenRouter" | "NVIDIA";
@@ -170,10 +180,11 @@ function chunkText(text: string, maxLength: number = 4000): string[] {
 /**
  * Generate comprehensive smart notes with memory techniques from raw text
  */
-export async function generateSmartNotes(text: string, modelId: string = DEFAULT_MODEL, apiKey?: string, focus?: string, style?: string) {
+export async function generateSmartNotes(text: string, modelId: string = DEFAULT_MODEL, apiKey?: string, focus?: string, style?: string, examType: "SSC" | "UPSC" = "SSC") {
   const openai = getAIClient(modelId, apiKey);
   try {
     const chunks = chunkText(text);
+    
     const allNotes: any[] = [];
     const summary: any = {
       totalConcepts: 0,
@@ -190,7 +201,7 @@ export async function generateSmartNotes(text: string, modelId: string = DEFAULT
         console.log(`Starting generation for chunk ${i + 1}/${chunks.length}...`);
         const prompt = focus 
           ? ENHANCE_NOTES_PROMPT(chunk, focus, style || "SSC")
-          : SMART_NOTES_PROMPT(chunk);
+          : (examType === "UPSC" ? UPSC_KEYWORD_ENGINE(chunk, focus || "the topic") : SSC_FACT_CHRONO_PROMPT(chunk, focus || "the topic"));
 
         // reasoning_budget and chat_template_kwargs are often NOT supported on standard API endpoints 
         // especially NVIDIA Integrate. We'll disable them for now to avoid 400 errors.
@@ -335,13 +346,15 @@ export async function generateMindMap(text: string, modelId: string = DEFAULT_MO
 /**
  * Generate MCQs from smart notes (ensures 100% accuracy to source material)
  */
-export async function generateMCQsFromNotes(notes: any, style: string, level: string, count: number = 20, modelId: string = DEFAULT_MODEL, apiKey?: string, focus?: string) {
+export async function generateMCQsFromNotes(notes: any, style: string, level: string, count: number = 20, modelId: string = DEFAULT_MODEL, apiKey?: string, focus?: string, examType: "SSC" | "UPSC" = "SSC") {
   const openai = getAIClient(modelId, apiKey);
   try {
     // Use the count requested by user or default to 20
     const mcqCount = count;
     const notesText = JSON.stringify(notes, null, 2);
-    const prompt = MCQ_FROM_NOTES_PROMPT(notesText, style, level, mcqCount, focus);
+    const prompt = examType === "UPSC" 
+      ? UPSC_MCQ_PROMPT(notesText, focus || "the topic")
+      : MCQ_FROM_NOTES_PROMPT(notesText, style, level, mcqCount, focus);
 
     console.log(`Generating ${mcqCount} MCQs from notes${focus ? ` with focus: ${focus}` : ""}...`);
 
@@ -403,7 +416,12 @@ export async function generateMCQsFromNotes(notes: any, style: string, level: st
 
     if (parsed) {
       if (Array.isArray(parsed)) return parsed;
-      if (parsed.questions && Array.isArray(parsed.questions)) return parsed.questions;
+      if (parsed.questions && Array.isArray(parsed.questions)) {
+        if (examType === "UPSC" && parsed.trapConcepts) {
+          return { questions: parsed.questions, trapConcepts: parsed.trapConcepts };
+        }
+        return parsed.questions;
+      }
       if (parsed.mcqs && Array.isArray(parsed.mcqs)) return parsed.mcqs;
       return [];
     }

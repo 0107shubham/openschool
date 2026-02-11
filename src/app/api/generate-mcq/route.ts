@@ -14,7 +14,8 @@ export async function POST(req: Request) {
       modelId, 
       accountIndex = 1,
       generationType = "BOTH", // "BOTH", "NOTES", "MCQS", "ENHANCE"
-      focus // Optional specific focus for MCQs or Notes Enhancement
+      focus, // Optional specific focus for MCQs or Notes Enhancement
+      examType = "SSC"
     } = reqBody;
 
     // Determine provider and correct API Key
@@ -22,7 +23,7 @@ export async function POST(req: Request) {
     const provider = model?.provider || "OpenRouter";
     
     let apiKey = "";
-    if (provider === "NVIDIA") {
+    if (accountIndex === 3 || provider === "NVIDIA") {
       apiKey = process.env.NVIDIA_API_KEY || "";
     } else {
       apiKey = accountIndex === 2 ? process.env.OPENROUTER_API_KEY_2 || "" : process.env.OPENROUTER_API_KEY_1 || "";
@@ -76,8 +77,8 @@ export async function POST(req: Request) {
 
     // 3. GENERATE NOTES if not found or if specifically requested
     if (!smartNotesData && (generationType === "NOTES" || generationType === "BOTH" || generationType === "MCQS")) {
-      console.log(`Generating smart notes with model: ${modelId || 'default'}...`);
-      smartNotesData = await generateSmartNotes(material.rawText, modelId, apiKey);
+      console.log(`Generating smart notes for ${examType} with model: ${modelId || 'default'}...`);
+      smartNotesData = await generateSmartNotes(material.rawText, modelId, apiKey, focus, style, examType);
 
       // Save Smart Notes to database ONLY if user didn't request "MCQS Only" 
       // OR if notes were missing for "BOTH" mode
@@ -98,7 +99,17 @@ export async function POST(req: Request) {
               note.content,
               note.examRelevance,
               note.importance,
-              JSON.stringify(note.memoryTechnique),
+              JSON.stringify({
+                ...(note.memoryTechnique || {}),
+                upscExtra: {
+                  background: note.background,
+                  pyqAnalysis: note.pyqAnalysis,
+                  currentRelevance: note.currentRelevance,
+                  analyticalAngles: note.analyticalAngles,
+                  valueAddition: note.valueAddition,
+                  probableQuestions: note.probableQuestions
+                }
+              }),
               note.examTips || null,
               note.commonMistakes || null,
               now,
@@ -117,7 +128,7 @@ export async function POST(req: Request) {
        console.log(`Enhancing notes with focus: "${focus}" and style: "${style}" using model: ${modelId}...`);
        
        // Generate NEW notes based on focus
-       const enhancedData = await generateSmartNotes(material.rawText, modelId, apiKey, focus, style);
+       const enhancedData = await generateSmartNotes(material.rawText, modelId, apiKey, focus, style, examType);
        
        if (enhancedData && enhancedData.notes.length > 0) {
           // Save NEW notes
@@ -137,7 +148,17 @@ export async function POST(req: Request) {
                  note.content,
                  note.examRelevance,
                  note.importance,
-                 JSON.stringify(note.memoryTechnique),
+                 JSON.stringify({
+                   ...(note.memoryTechnique || {}),
+                   upscExtra: {
+                     background: note.background,
+                     pyqAnalysis: note.pyqAnalysis,
+                     currentRelevance: note.currentRelevance,
+                     analyticalAngles: note.analyticalAngles,
+                     valueAddition: note.valueAddition,
+                     probableQuestions: note.probableQuestions
+                   }
+                 }),
                  note.examTips || null,
                  note.commonMistakes || null,
                  now,
@@ -187,8 +208,26 @@ export async function POST(req: Request) {
     const savedMcqs = [];
     if (generationType === "MCQS" || generationType === "BOTH") {
       const mcqRequirement = Math.max(12, Math.ceil(smartNotesData.notes.length * 1.1));
-      console.log(`Generating ${mcqRequirement} MCQs from ${smartNotesData.notes.length} smart notes...`);
-      const mcqs = await generateMCQsFromNotes(smartNotesData, style, level, mcqRequirement, modelId, apiKey, focus);
+      console.log(`Generating ${mcqRequirement} ${examType} MCQs from ${smartNotesData.notes.length} smart notes...`);
+      const mcqOutput = await generateMCQsFromNotes(smartNotesData, style, level, mcqRequirement, modelId, apiKey, focus, examType);
+      
+      const mcqs = Array.isArray(mcqOutput) ? mcqOutput : (mcqOutput.questions || []);
+      const trapConcepts = !Array.isArray(mcqOutput) ? (mcqOutput.trapConcepts || []) : [];
+
+      // Save Trap Concepts as special notes
+      if (trapConcepts.length > 0) {
+        for (const trap of trapConcepts) {
+          const noteId = crypto.randomUUID();
+          const now = new Date().toISOString();
+          const trapContent = `WHY IT'S A TRAP: ${trap.whyItsATrap}\n\nCONCEPTUAL TRUTH: ${trap.correction}`;
+          
+          await query(
+            `INSERT INTO "SmartNote" (id, "materialId", topic, subtopic, content, "examRelevance", importance, "memoryTechnique", "createdAt", "updatedAt")
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+            [noteId, materialId, trap.concept, "UPSC Exam Trap!", trapContent, "UPSC", 5, JSON.stringify({ type: "warning" }), now, now]
+          );
+        }
+      }
 
       // Save MCQs to database
       for (const mcq of mcqs) {

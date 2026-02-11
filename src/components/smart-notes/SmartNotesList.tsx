@@ -39,6 +39,7 @@ export function SmartNotesList({ materialId, materialTitle }: SmartNotesListProp
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<"ALL" | "SSC" | "UPSC">("ALL");
+  const [viewMode, setViewMode] = useState<"CARDS" | "BOOK">("BOOK");
   
   // Per-Note MCQ Generation State
   const [selectedNote, setSelectedNote] = useState<any>(null);
@@ -176,7 +177,8 @@ export function SmartNotesList({ materialId, materialTitle }: SmartNotesListProp
           generationType: "MCQS",
           focus: focusTopic,
           modelId: selectedModel,
-          accountIndex: selectedAccountIndex
+          accountIndex: selectedAccountIndex,
+          examType: filter === "ALL" ? "SSC" : filter
         }),
       });
 
@@ -212,7 +214,8 @@ export function SmartNotesList({ materialId, materialTitle }: SmartNotesListProp
           focus: focusTopic,
           style: enhanceStyle,
           modelId: enhanceModel,
-          accountIndex: enhanceAccountIndex
+          accountIndex: enhanceAccountIndex,
+          examType: enhanceStyle === "BOTH" ? "UPSC" : (enhanceStyle as "SSC" | "UPSC")
         }),
       });
 
@@ -320,7 +323,8 @@ export function SmartNotesList({ materialId, materialTitle }: SmartNotesListProp
           generationType: "MCQS",
           focus: perNoteFocus,
           modelId: selectedModel,
-          accountIndex: selectedAccountIndex
+          accountIndex: selectedAccountIndex,
+          examType: selectedNote?.examRelevance === "UPSC" ? "UPSC" : "SSC"
         }),
       });
 
@@ -451,33 +455,185 @@ export function SmartNotesList({ materialId, materialTitle }: SmartNotesListProp
             )}
           </button>
         ))}
+
+        <div className="flex-1" />
+
+        <div className="flex items-center gap-1 bg-white/5 rounded-xl p-1 border border-white/10">
+          {(["CARDS", "BOOK"] as const).map((mode) => (
+            <button
+              key={mode}
+              onClick={() => setViewMode(mode)}
+              className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${
+                viewMode === mode
+                  ? "bg-white/10 text-white shadow-lg"
+                  : "text-white/30 hover:text-white"
+              }`}
+            >
+              {mode} VIEW
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Notes by Topic */}
       <div className="space-y-8">
-        {Object.entries(byTopic).map(([topic, topicNotes]) => (
-          <div key={topic}>
-            <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-              <BookOpen className="h-5 w-5 text-indigo-400" />
-              {topic}
-              <span className="text-sm font-normal text-white/40">({topicNotes.length} notes)</span>
-            </h3>
-            <div className="grid gap-4 md:grid-cols-2">
-              {topicNotes.map((note, idx) => (
-                <SmartNoteCard 
-                  key={note.id} 
-                  note={note} 
-                  index={idx} 
-                  onCreateMCQ={handlePerNoteMCQ}
-                  onEdit={() => {
-                    setNoteToEdit(note);
-                    setIsEditNoteModalOpen(true);
-                  }}
-                />
-              ))}
+        {viewMode === "BOOK" ? (
+              <div className="bg-[#FCFCFA] rounded-[3rem] p-10 md:p-16 border border-black/5 shadow-xl relative overflow-hidden min-h-[500px]">
+                {/* Book spine decoration */}
+                <div className="absolute top-0 left-0 w-2.5 bg-gradient-to-b from-amber-200/40 via-orange-200/40 to-amber-200/40 h-full" />
+                <div className="absolute top-0 left-2.5 w-[1px] bg-black/5 h-full" />
+                
+                {/* Texture */}
+                <div className="absolute inset-0 opacity-[0.05] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/natural-paper.png')]" />
+
+                {Object.entries(byTopic).map(([topic, topicNotes]) => (
+                    <div key={topic} className="mb-24 last:mb-0 relative z-10">
+                        <div className="flex items-center gap-6 mb-12 border-b border-black/5 pb-8">
+                            <div className="h-14 w-14 rounded-2xl bg-amber-500/10 flex items-center justify-center text-amber-700">
+                                <BookOpen className="h-7 w-7" />
+                            </div>
+                            <h2 className="text-4xl font-black text-gray-900 uppercase tracking-tighter">{topic}</h2>
+                        </div>
+
+                        <div className="space-y-16">
+                            {topicNotes.map((note, idx) => (
+                                <motion.div 
+                                    key={note.id} 
+                                    initial={{ opacity: 0, x: -10 }}
+                                    whileInView={{ opacity: 1, x: 0 }}
+                                    viewport={{ once: true }}
+                                    className="relative pl-12 group"
+                                >
+                                    {/* Section bullet */}
+                                    <div className="absolute left-0 top-3 w-4 h-4 rounded-full border-[3px] border-amber-500/30 bg-white group-hover:border-amber-500 transition-all duration-500" />
+                                    <div className="absolute left-[7px] top-[28px] w-[2px] bottom-0 bg-black/5 group-last:hidden" />
+
+                                    <div className="flex items-center justify-between mb-5">
+                                        {note.subtopic && (
+                                            <h3 className="text-2xl font-black text-gray-800 tracking-tight group-hover:text-amber-700 transition-colors uppercase">
+                                                {note.subtopic}
+                                            </h3>
+                                        )}
+                                        <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-all">
+                                             <button onClick={() => { setNoteToEdit(note); setIsEditNoteModalOpen(true); }} className="p-2 text-black/20 hover:text-black hover:bg-black/5 rounded-xl"><Edit2 className="h-4 w-4" /></button>
+                                             <button onClick={() => handleDeleteNote(note.id)} className="p-2 text-black/20 hover:text-red-500 hover:bg-red-500/5 rounded-xl"><Trash2 className="h-4 w-4" /></button>
+                                        </div>
+                                    </div>
+
+                                    <div className="text-xl text-gray-700/90 leading-relaxed space-y-4 selection:bg-amber-500/20">
+                                        {note.content.split('\n').map((line: string, i: number) => {
+                                            const trimmed = line.trim();
+                                            if (!trimmed) return <div key={i} className="h-4" />;
+                                            const isPointer = trimmed.startsWith('→') || trimmed.startsWith('-') || trimmed.startsWith('*') || trimmed.startsWith('•');
+                                            const depth = line.search(/\S/);
+                                            return (
+                                                <p 
+                                                    key={i} 
+                                                    className={`whitespace-pre-wrap transition-colors hover:text-gray-900 ${isPointer ? 'font-bold text-gray-900' : ''}`}
+                                                    style={{ paddingLeft: `${(depth * 0.5) + (isPointer ? 1.5 : 0)}rem` }}
+                                                >
+                                                    {isPointer && <span className="absolute left-12 text-amber-500/50">▶</span>}
+                                                    {trimmed.replace(/^[→\-*•]\s*/, '')}
+                                                </p>
+                                            );
+                                        })}
+                                    </div>
+                                    
+                                    {/* Smart Note Add-ons */}
+                                    <div className="mt-8 space-y-6">
+                                        {/* UPSC Extended Data */}
+                                        {note.memoryTechnique?.upscExtra && (
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                                {note.memoryTechnique.upscExtra.background && (
+                                                    <div className="p-6 rounded-2xl bg-black/[0.02] border border-black/5 text-base">
+                                                        <span className="font-black text-black/30 uppercase tracking-[0.2em] text-[10px] block mb-2">Historical Context</span>
+                                                        <p className="text-gray-600 leading-relaxed font-medium">{note.memoryTechnique.upscExtra.background}</p>
+                                                    </div>
+                                                )}
+                                                {note.memoryTechnique.upscExtra.currentRelevance && (
+                                                    <div className="p-6 rounded-2xl bg-amber-500/[0.03] border border-amber-500/10 text-base">
+                                                        <span className="font-black text-amber-700/60 uppercase tracking-[0.2em] text-[10px] block mb-2">Modern Linkage</span>
+                                                        <p className="text-gray-700/80 italic leading-relaxed font-medium">{note.memoryTechnique.upscExtra.currentRelevance}</p>
+                                                    </div>
+                                                )}
+                                                {note.memoryTechnique.upscExtra.pyqAnalysis && (
+                                                    <div className="p-6 rounded-2xl bg-sky-500/[0.03] border border-sky-500/10 text-base">
+                                                        <span className="font-black text-sky-700/60 uppercase tracking-[0.2em] text-[10px] block mb-2">Trend Analysis</span>
+                                                        <p className="text-gray-700/80 leading-relaxed font-medium">{note.memoryTechnique.upscExtra.pyqAnalysis}</p>
+                                                    </div>
+                                                )}
+                                                {note.memoryTechnique.upscExtra.valueAddition && (
+                                                    <div className="p-6 rounded-2xl bg-purple-500/[0.03] border border-purple-500/10 text-base">
+                                                        <span className="font-black text-purple-700/60 uppercase tracking-[0.2em] text-[10px] block mb-2">Mains Value Addition</span>
+                                                        <p className="text-gray-700/80 leading-relaxed font-medium">{note.memoryTechnique.upscExtra.valueAddition}</p>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+
+                                        {/* Analytical Angles */}
+                                        {note.memoryTechnique?.upscExtra?.analyticalAngles && Array.isArray(note.memoryTechnique.upscExtra.analyticalAngles) && (
+                                             <div className="p-8 rounded-2xl bg-indigo-500/[0.02] border border-indigo-500/5">
+                                                <span className="font-black text-indigo-700/40 uppercase tracking-[0.2em] text-[10px] block mb-5">Expert Perspectives</span>
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                                                    {note.memoryTechnique.upscExtra.analyticalAngles.map((angle: string, i: number) => (
+                                                        <div key={i} className="flex gap-3 text-base text-gray-600 bg-white p-4 rounded-xl shadow-sm border border-black/[0.03] font-medium">
+                                                            <span className="text-amber-500">◈</span>
+                                                            {angle}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                             </div>
+                                        )}
+
+                                        {/* Exam Tips */}
+                                        <div className="flex flex-wrap gap-4">
+                                            {note.examTips && (
+                                                <div className="flex-1 min-w-[300px] p-6 rounded-2xl bg-emerald-500/[0.03] border border-emerald-500/10 text-base text-emerald-800">
+                                                    <span className="font-black text-emerald-600 uppercase tracking-[0.2em] text-[10px] block mb-2">Examiner's Advice</span>
+                                                    {note.examTips}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </motion.div>
+                            ))}
+                        </div>
+                    </div>
+                ))}
+
+                {/* Book closing decoration */}
+                <div className="mt-32 text-center opacity-20">
+                    <div className="h-px bg-gradient-to-r from-transparent via-black/10 to-transparent mb-6" />
+                    <Sparkles className="h-10 w-10 mx-auto text-amber-500" />
+                    <p className="text-xs font-black uppercase tracking-[0.4em] text-gray-500 mt-4">Closed Module Knowledge Base</p>
+                </div>
+             </div>
+        ) : (
+          Object.entries(byTopic).map(([topic, topicNotes]) => (
+            <div key={topic}>
+              <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                <BookOpen className="h-5 w-5 text-indigo-400" />
+                {topic}
+                <span className="text-sm font-normal text-white/40">({topicNotes.length} notes)</span>
+              </h3>
+              <div className="grid gap-8 grid-cols-1">
+                {topicNotes.map((note, idx) => (
+                  <SmartNoteCard 
+                    key={note.id} 
+                    note={note} 
+                    index={idx} 
+                    onCreateMCQ={handlePerNoteMCQ}
+                    onEdit={() => {
+                      setNoteToEdit(note);
+                      setIsEditNoteModalOpen(true);
+                    }}
+                  />
+                ))}
+              </div>
             </div>
-          </div>
-        ))}
+          ))
+        )}
       </div>
       {/* Specific Focus Modal */}
       <Modal
