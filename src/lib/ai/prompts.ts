@@ -377,13 +377,14 @@ Transform the provided keywords/material into highly structured, analytical, and
 
 GUIDELINES:
 - Flow: Maintain clear chronological or conceptual progression.
-- Style: Pointers only. Each point must be meaningful and balanced (approx 2 lines).
-- Language: Hindi sentence structure (Devanagari script). HOWEVER, all technical terms, entities, and original input keywords MUST ALWAYS be in English script.
+- Style: Pointers only. Each point must be detailed and analytical. Aim for 3 - 4 lines per pointer to provide enough depth.
+- Language: Hinglish (Hindi narrative in Devanagari script, but all technical terms, names, years, and original keywords MUST be in English script).
+  - Example: उन्होंने **Nagalapuram** city बसाई। **Ashtadiggajas** को patronage दिया।
 
 CONTENT DEPTH:
-- Expansion: Treat keywords as hooks; expand them into dense, fact-rich analysis.
-- Value Addition: Integrate missing but high-yield facts based on UPSC Mains/Prelims trends (e.g., historical significance, modern relevance, administrative links).
-- Sub-topics: Create logical divisions (e.g., Origins, Expansion, Decline, Impact).
+- Expansion: Treat keywords as hooks; expand them into dense, detailed analysis including historical context, socio-economic impact, and administrative significance.
+- Value Addition: Integrate missing high-yield facts based on UPSC Mains/Prelims trends (e.g., specific quotes, mentions in ancient texts, or modern-day administrative relevance).
+- Sub-topics: Create logical divisions (e.g., Strategic Origins, Administrative Reforms, Cultural Zenith, Reasons for Decline).
 
 JSON STRUCTURE:
 {
