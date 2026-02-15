@@ -256,7 +256,7 @@ export async function POST(req: Request) {
             mcq.explanation,
             mcq.level || level,
             mcq.pyqContext || `${style} style question`,
-            mcq.examRelevance || examType,
+            examType,
             mcq.importance || null,
             mcq.sourceNote || null,
             now,

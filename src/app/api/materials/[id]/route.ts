@@ -21,7 +21,7 @@ export async function DELETE(
       const queryParams = [materialId];
 
       if (exam) {
-        deleteQuery += ` AND ("examRelevance" = $2 OR "examRelevance" = 'BOTH')`;
+        deleteQuery += ` AND "examRelevance" = $2`;
         queryParams.push(exam);
       }
 

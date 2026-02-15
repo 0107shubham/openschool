@@ -80,7 +80,7 @@ ${text}
 """
 `;
 
-export const MCQ_FROM_NOTES_PROMPT = (notes: string, style: string, level: string, count: number = 20, focus?: string) => `
+export const MCQ_FROM_NOTES_PROMPT = (notes: string, style: string, level: string, count: number = 20, focus?: string, examType: string = "SSC") => `
 You are a Senior Exam Paper Setter for ${style} exams (${level}).
 
 CRITICAL RULES:
@@ -89,7 +89,8 @@ CRITICAL RULES:
 3. STRUCTURE: Every MCQ must have "question", "options" (4), and "answer".
 5. LANGUAGE: Questions/Options: English. Explanations: Hinglish.
 6. CONCEPT TESTING: Focus on testing understanding of the facts. Total count: ${count}.
-${focus ? `7. FOCUS TOPIC: The questions MUST focus SPECIFICALLY on '${focus}'. Ignore other topics unless related.` : ""}
+7. EXAM TARGET: You MUST only generate questions relevant to the ${examType} exam.
+${focus ? `8. FOCUS TOPIC: The questions MUST focus SPECIFICALLY on '${focus}'. Ignore other topics unless related.` : ""}
 
 JSON RULES:
 - Return ONLY a valid JSON object.
@@ -108,7 +109,7 @@ JSON FORMAT:
       "explanation": "Hinglish explanation + memory technique",
       "level": "${level}",
       "sourceNote": "Concept source",
-      "examRelevance": "SSC" | "UPSC" | "BOTH",
+      "examRelevance": "${examType}",
       "importance": 1-5
     }
   ]
@@ -319,7 +320,7 @@ ${text}
 """
 `;
 
-export const UPSC_MCQ_PROMPT = (notes: string, topicName: string = "the topic", count: number = 15) => `
+export const UPSC_MCQ_PROMPT = (notes: string, topicName: string = "the topic", count: number = 15, examType: string = "UPSC") => `
 You are a UPSC Examiner. Create ${count} high-quality, concept-based MCQs on "${topicName}" using the provided notes.
 
 CORE REQUIREMENTS:

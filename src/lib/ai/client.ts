@@ -357,8 +357,8 @@ export async function generateMCQsFromNotes(notes: any, style: string, level: st
       : JSON.stringify(notes, null, 2).substring(0, 10000); // Fallback
 
     const prompt = examType === "UPSC" 
-      ? UPSC_MCQ_PROMPT(notesText, focus || "the topic", mcqCount)
-      : MCQ_FROM_NOTES_PROMPT(notesText, style, level, mcqCount, focus);
+      ? UPSC_MCQ_PROMPT(notesText, focus || "the topic", mcqCount, examType)
+      : MCQ_FROM_NOTES_PROMPT(notesText, style, level, mcqCount, focus, examType);
 
     console.log(`Generating ${mcqCount} MCQs from notes${focus ? ` with focus: ${focus}` : ""}...`);
 

@@ -87,8 +87,9 @@ export default function SubclassroomPage() {
   const [mcqModalOpen, setMcqModalOpen] = useState(false);
   const [materialForMcq, setMaterialForMcq] = useState<Material | null>(null);
   
-  // Generation State
+  // Generation & Deletion State
   const [generatingFor, setGeneratingFor] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<string | null>(null);
   const [generationStatus, setGenerationStatus] = useState<string>("");
 
   useEffect(() => {
@@ -150,6 +151,7 @@ export default function SubclassroomPage() {
   const handleDeleteMaterial = async (materialId: string) => {
     if (!confirm("Are you sure you want to delete this material? This will also delete all associated smart notes and MCQs.")) return;
     
+    setDeleting(materialId);
     try {
       const res = await fetch(`/api/materials/${materialId}`, {
         method: "DELETE",
@@ -164,6 +166,8 @@ export default function SubclassroomPage() {
     } catch (error) {
       console.error("Delete error:", error);
       alert("Failed to delete material.");
+    } finally {
+      setDeleting(null);
     }
   };
 
@@ -171,6 +175,7 @@ export default function SubclassroomPage() {
     const msg = exam ? `Are you sure you want to delete ONLY the ${exam} MCQs?` : "Are you sure you want to delete ALL MCQs for this material?";
     if (!confirm(msg)) return;
     
+    setDeleting(`${materialId}-${exam || 'all'}`);
     try {
       const url = `/api/materials/${materialId}?type=mcqs${exam ? `&exam=${exam}` : ''}`;
       const res = await fetch(url, {
@@ -186,6 +191,8 @@ export default function SubclassroomPage() {
     } catch (error) {
       console.error("Delete error:", error);
       alert("Failed to delete MCQs.");
+    } finally {
+      setDeleting(null);
     }
   };
 
@@ -460,6 +467,8 @@ export default function SubclassroomPage() {
                           onDelete={() => handleDeleteMaterial(material.id)}
                           onDeleteMcqs={(exam?: any) => handleDeleteMcqs(material.id, exam)}
                           isGenerating={generatingFor === material.id}
+                          isDeleting={deleting?.startsWith(material.id)}
+                          deleteType={deleting}
                         />
                       ))}
                     </div>
@@ -702,7 +711,7 @@ export default function SubclassroomPage() {
   );
 }
 
-function MaterialRow({ material, index, onViewNotes, onGenerateMCQs, onEdit, onDelete, onDeleteMcqs, isGenerating }: any) {
+function MaterialRow({ material, index, onViewNotes, onGenerateMCQs, onEdit, onDelete, onDeleteMcqs, isGenerating, isDeleting, deleteType }: any) {
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.1 }} className="group flex items-center justify-between rounded-2xl border border-white/5 bg-white/[0.02] p-4 hover:bg-white/5">
       <div className="flex items-center gap-4">
@@ -721,7 +730,7 @@ function MaterialRow({ material, index, onViewNotes, onGenerateMCQs, onEdit, onD
              <button 
                onClick={() => onGenerateMCQs("SSC")} 
                className="px-3 py-2 rounded-lg bg-green-500/10 text-[10px] font-black text-green-400 hover:bg-green-500/20 transition-all"
-               disabled={isGenerating}
+               disabled={isGenerating || isDeleting}
              >
                 {isGenerating ? <Loader2 className="h-3 w-3 animate-spin" /> : "SSC MCQ"}
              </button>
@@ -730,8 +739,8 @@ function MaterialRow({ material, index, onViewNotes, onGenerateMCQs, onEdit, onD
                 <Link href={`/quiz/${material.id}?exam=SSC`} className="px-3 py-2 text-[10px] font-black text-white hover:bg-green-500 transition-all">
                   SSC QUIZ
                 </Link>
-                <button onClick={() => onDeleteMcqs("SSC")} className="px-2 py-2 text-white/50 hover:text-white hover:bg-black/20 transition-all border-l border-white/10" title="Delete SSC MCQs">
-                  <Trash2 className="h-3 w-3" />
+                <button onClick={() => onDeleteMcqs("SSC")} className="px-2 py-2 text-white/50 hover:text-white hover:bg-black/20 transition-all border-l border-white/10" title="Delete SSC MCQs" disabled={isDeleting}>
+                  {deleteType === `${material.id}-SSC` ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
                 </button>
               </div>
            )}
@@ -741,7 +750,7 @@ function MaterialRow({ material, index, onViewNotes, onGenerateMCQs, onEdit, onD
              <button 
                onClick={() => onGenerateMCQs("UPSC")} 
                className="px-3 py-2 rounded-lg bg-purple-500/10 text-[10px] font-black text-purple-400 hover:bg-purple-500/20 transition-all"
-               disabled={isGenerating}
+               disabled={isGenerating || isDeleting}
              >
                 {isGenerating ? <Loader2 className="h-3 w-3 animate-spin" /> : "UPSC MCQ"}
              </button>
@@ -750,8 +759,8 @@ function MaterialRow({ material, index, onViewNotes, onGenerateMCQs, onEdit, onD
                 <Link href={`/quiz/${material.id}?exam=UPSC`} className="px-3 py-2 text-[10px] font-black text-white hover:bg-purple-500 transition-all">
                   UPSC QUIZ
                 </Link>
-                <button onClick={() => onDeleteMcqs("UPSC")} className="px-2 py-2 text-white/50 hover:text-white hover:bg-black/20 transition-all border-l border-white/10" title="Delete UPSC MCQs">
-                  <Trash2 className="h-3 w-3" />
+                <button onClick={() => onDeleteMcqs("UPSC")} className="px-2 py-2 text-white/50 hover:text-white hover:bg-black/20 transition-all border-l border-white/10" title="Delete UPSC MCQs" disabled={isDeleting}>
+                  {deleteType === `${material.id}-UPSC` ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
                 </button>
               </div>
            )}
@@ -759,16 +768,18 @@ function MaterialRow({ material, index, onViewNotes, onGenerateMCQs, onEdit, onD
 
          {parseInt(material.mcqCount) > 0 && (
            <div className="flex items-center gap-1 bg-white/5 rounded-lg overflow-hidden border border-white/10">
-             <button onClick={() => onGenerateMCQs(material.examRelevance || 'SSC')} className="px-2 py-2 text-white/30 hover:text-white hover:bg-indigo-500/20 transition-all" title="Regenerate/Add More">
+             <button onClick={() => onGenerateMCQs(material.examRelevance || 'SSC')} className="px-2 py-2 text-white/30 hover:text-white hover:bg-indigo-500/20 transition-all" title="Regenerate/Add More" disabled={isGenerating || isDeleting}>
                 <Sparkles className="h-3.5 w-3.5" />
              </button>
-             <button onClick={onDeleteMcqs} className="px-2 py-2 text-white/20 hover:text-red-300 hover:bg-red-500/20 transition-all border-l border-white/10" title="Delete Only MCQs">
-               <Trash2 className="h-3.5 w-3.5" />
+             <button onClick={() => onDeleteMcqs()} className="px-2 py-2 text-white/20 hover:text-red-300 hover:bg-red-500/20 transition-all border-l border-white/10" title="Delete Only MCQs" disabled={isDeleting}>
+               {deleteType === `${material.id}-all` ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
              </button>
            </div>
          )}
          <button onClick={onEdit} className="p-2 text-white/10 hover:text-indigo-400 transition-all" title="Edit Details"><Edit2 className="h-4 w-4" /></button>
-         <button onClick={onDelete} className="p-2 text-white/10 hover:text-red-400 transition-all" title="Delete Content"><Trash2 className="h-4 w-4" /></button>
+         <button onClick={onDelete} className="p-2 text-white/10 hover:text-red-400 transition-all" title="Delete Content" disabled={isDeleting}>
+           {deleteType === material.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+         </button>
       </div>
     </motion.div>
   );
