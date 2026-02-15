@@ -5,11 +5,13 @@ import { McqCard, MCQ } from "@/components/quiz/McqCard";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronLeft, Trophy, RotateCcw, Home, Loader2, AlertTriangle } from "lucide-react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 
 export default function QuizPage() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const id = params.id as string;
+  const examType = searchParams.get("exam");
   
   const [questions, setQuestions] = useState<MCQ[]>([]);
   const [sourceInfo, setSourceInfo] = useState({ source: "", type: "" });
@@ -21,11 +23,14 @@ export default function QuizPage() {
 
   useEffect(() => {
     fetchQuiz();
-  }, [id]);
+  }, [id, examType]);
 
   const fetchQuiz = async () => {
     try {
-      const res = await fetch(`/api/quiz/${id}`);
+      const url = new URL(`/api/quiz/${id}`, window.location.origin);
+      if (examType) url.searchParams.set("exam", examType);
+      
+      const res = await fetch(url.toString());
       const data = await res.json();
       if (data.mcqs && Array.isArray(data.mcqs)) {
         setQuestions(data.mcqs);
@@ -146,7 +151,7 @@ export default function QuizPage() {
         </Link>
         <div className="text-center">
           <div className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest leading-none mb-1">
-            {sourceInfo.type}
+            {examType ? `${examType} PREP • ` : ""}{sourceInfo.type}
           </div>
           <h1 className="text-lg font-black uppercase tracking-tighter leading-none">
             {sourceInfo.source}

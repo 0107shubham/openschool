@@ -13,9 +13,10 @@ export async function POST(req: Request) {
       style = "SSC CGL 2024", 
       modelId, 
       accountIndex = 1,
-      generationType = "BOTH", // "BOTH", "NOTES", "MCQS", "ENHANCE"
+      generationType = "BOTH", // "BOTH", "NOTES", "MCQS", "ENHANCE", "MINDMAP"
       focus, // Optional specific focus for MCQs or Notes Enhancement
-      examType = "SSC"
+      examType = "SSC",
+      refreshNotes = false // New parameter to force regeneration of notes
     } = reqBody;
 
     // Determine provider and correct API Key
@@ -56,10 +57,10 @@ export async function POST(req: Request) {
     let smartNotesData: any = null;
     let savedNotes: any[] = [];
     
-    if (generationType === "MCQS" || generationType === "BOTH") {
+    if ((generationType === "MCQS" || generationType === "BOTH") && !refreshNotes) {
       const existingNotesRes = await query(
-        `SELECT * FROM "SmartNote" WHERE "materialId" = $1`,
-        [materialId]
+        `SELECT * FROM "SmartNote" WHERE "materialId" = $1 AND ("examRelevance" = $2 OR "examRelevance" = 'BOTH')`,
+        [materialId, examType]
       );
       
       if (existingNotesRes.rows.length > 0) {
@@ -207,8 +208,11 @@ export async function POST(req: Request) {
     // 4. GENERATE MCQs if requested
     const savedMcqs = [];
     if (generationType === "MCQS" || generationType === "BOTH") {
-      const mcqRequirement = Math.max(12, Math.ceil(smartNotesData.notes.length * 1.1));
-      console.log(`Generating ${mcqRequirement} ${examType} MCQs from ${smartNotesData.notes.length} smart notes...`);
+      // Ensure at least 12 questions, scale up to 1.5x notes for high-density material
+      const noteCount = smartNotesData.notes.length;
+      const mcqRequirement = Math.max(12, Math.min(30, Math.ceil(noteCount * 1.5)));
+      
+      console.log(`Generating ${mcqRequirement} ${examType} MCQs (Minimum 12) from ${noteCount} smart notes...`);
       const mcqOutput = await generateMCQsFromNotes(smartNotesData, style, level, mcqRequirement, modelId, apiKey, focus, examType);
       
       const mcqs = Array.isArray(mcqOutput) ? mcqOutput : (mcqOutput.questions || []);
@@ -224,7 +228,7 @@ export async function POST(req: Request) {
           await query(
             `INSERT INTO "SmartNote" (id, "materialId", topic, subtopic, content, "examRelevance", importance, "memoryTechnique", "createdAt", "updatedAt")
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-            [noteId, materialId, trap.concept, "UPSC Exam Trap!", trapContent, "UPSC", 5, JSON.stringify({ type: "warning" }), now, now]
+            [noteId, materialId, trap.topic || trap.concept || "Exam Trap", "UPSC Exam Trap!", trapContent, "UPSC", 5, JSON.stringify({ type: "warning" }), now, now]
           );
         }
       }
@@ -252,7 +256,7 @@ export async function POST(req: Request) {
             mcq.explanation,
             mcq.level || level,
             mcq.pyqContext || `${style} style question`,
-            mcq.examRelevance || null,
+            mcq.examRelevance || examType,
             mcq.importance || null,
             mcq.sourceNote || null,
             now,

@@ -15,14 +15,22 @@ export async function DELETE(
     }
 
     if (type === "mcqs") {
-      // Delete only MCQs for this material
-      await query(
-        `DELETE FROM "MCQ" WHERE "materialId" = $1`,
-        [materialId]
-      );
+      const exam = searchParams.get("exam"); // "SSC" or "UPSC"
+      
+      let deleteQuery = `DELETE FROM "MCQ" WHERE "materialId" = $1`;
+      const queryParams = [materialId];
+
+      if (exam) {
+        deleteQuery += ` AND ("examRelevance" = $2 OR "examRelevance" = 'BOTH')`;
+        queryParams.push(exam);
+      }
+
+      // Delete MCQs for this material
+      await query(deleteQuery, queryParams);
+      
       return NextResponse.json({ 
         success: true, 
-        message: "MCQs deleted successfully"
+        message: `${exam ? exam : "All"} MCQs deleted successfully`
       });
     }
 

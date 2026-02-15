@@ -19,6 +19,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     const materialsRes = await query(
       `SELECT m.*, 
        (SELECT COUNT(*) FROM "MCQ" q WHERE q."materialId" = m.id) as "mcqCount",
+       (SELECT COUNT(*) FROM "MCQ" q WHERE q."materialId" = m.id AND (q."examRelevance" = 'SSC' OR q."examRelevance" = 'BOTH')) as "sscMcqCount",
+       (SELECT COUNT(*) FROM "MCQ" q WHERE q."materialId" = m.id AND (q."examRelevance" = 'UPSC' OR q."examRelevance" = 'BOTH')) as "upscMcqCount",
        (SELECT COUNT(*) FROM "SmartNote" n WHERE n."materialId" = m.id) as "notesCount",
        (SELECT COUNT(*) FROM "SmartNote" n WHERE n."materialId" = m.id AND (n."examRelevance" = 'SSC' OR n."examRelevance" = 'BOTH')) as "sscNotesCount",
        (SELECT COUNT(*) FROM "SmartNote" n WHERE n."materialId" = m.id AND (n."examRelevance" = 'UPSC' OR n."examRelevance" = 'BOTH')) as "upscNotesCount"

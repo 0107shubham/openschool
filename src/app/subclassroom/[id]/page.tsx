@@ -33,6 +33,8 @@ interface Material {
   subcategory?: string;
   createdAt: string;
   mcqCount: number;
+  sscMcqCount: number;
+  upscMcqCount: number;
   notesCount: number;
   sscNotesCount: number;
   upscNotesCount: number;
@@ -165,11 +167,13 @@ export default function SubclassroomPage() {
     }
   };
 
-  const handleDeleteMcqs = async (materialId: string) => {
-    if (!confirm("Are you sure you want to delete ONLY the MCQs for this material?")) return;
+  const handleDeleteMcqs = async (materialId: string, exam?: "SSC" | "UPSC") => {
+    const msg = exam ? `Are you sure you want to delete ONLY the ${exam} MCQs?` : "Are you sure you want to delete ALL MCQs for this material?";
+    if (!confirm(msg)) return;
     
     try {
-      const res = await fetch(`/api/materials/${materialId}?type=mcqs`, {
+      const url = `/api/materials/${materialId}?type=mcqs${exam ? `&exam=${exam}` : ''}`;
+      const res = await fetch(url, {
         method: "DELETE",
       });
       
@@ -325,25 +329,32 @@ export default function SubclassroomPage() {
     setMcqModalOpen(true);
   };
 
-  const handleGenerateMCQsOnly = async () => {
+  const handleGenerateMCQsOnly = async (type: "SSC" | "UPSC" = examType, refresh: boolean = false) => {
     if (!materialForMcq) return;
     const materialId = materialForMcq.id;
     setMcqModalOpen(false);
     
     try {
       setGeneratingFor(materialId);
-      setGenerationStatus("Generating MCQs...");
+      setGenerationStatus(`Generating ${type} MCQs${refresh ? " & Refreshing Notes" : ""}...`);
       
       const res = await fetch("/api/generate-mcq", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ materialId, modelId: selectedModel, accountIndex: selectedAccount, generationType: "MCQS", examType: examType }),
+        body: JSON.stringify({ 
+          materialId, 
+          modelId: selectedModel, 
+          accountIndex: selectedAccount, 
+          generationType: refresh ? "BOTH" : "MCQS", 
+          examType: type,
+          refreshNotes: refresh
+        }),
       });
       
       const data = await res.json();
       
       if (res.ok && data.success) {
-        setGenerationStatus(`✅ Created ${data.mcqs?.count || 0} MCQs!`);
+        setGenerationStatus(`✅ Created ${data.mcqs?.count || 0} ${type} MCQs!`);
         setTimeout(() => {
           setGeneratingFor(null);
           fetchSubclassroomData();
@@ -441,13 +452,13 @@ export default function SubclassroomPage() {
                           material={material} 
                           index={idx} 
                           onViewNotes={() => { setSelectedMaterial(material); setNotesModalOpen(true); }}
-                          onGenerateMCQs={() => handleOpenMcqModal(material)}
+                          onGenerateMCQs={(type: any) => { setExamType(type); handleOpenMcqModal(material); }}
                           onEdit={() => {
                             setMaterialToEdit(material);
                             setEditMaterialModalOpen(true);
                           }}
                           onDelete={() => handleDeleteMaterial(material.id)}
-                          onDeleteMcqs={() => handleDeleteMcqs(material.id)}
+                          onDeleteMcqs={(exam?: any) => handleDeleteMcqs(material.id, exam)}
                           isGenerating={generatingFor === material.id}
                         />
                       ))}
@@ -596,6 +607,25 @@ export default function SubclassroomPage() {
           
           <div className="space-y-4">
               <div className="space-y-2">
+                  <label className="text-xs font-bold text-white/60 uppercase">Exam Type</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {["SSC", "UPSC"].map((type) => (
+                      <button
+                        key={type}
+                        onClick={() => setExamType(type as any)}
+                        className={`px-4 py-3 rounded-xl text-xs font-black transition-all border ${
+                          examType === type 
+                          ? 'bg-indigo-600 border-indigo-500 text-white' 
+                          : 'bg-white/5 border-white/10 text-white/40 hover:text-white'
+                        }`}
+                      >
+                        {type} PREP
+                      </button>
+                    ))}
+                  </div>
+              </div>
+
+              <div className="space-y-2">
                   <label className="text-xs font-bold text-white/60 uppercase flex items-center gap-2"><Sparkles className="h-3 w-3" /> AI Provider</label>
                   <select value={selectedProviderType === "OpenRouter" ? selectedAccount : "NVIDIA"} onChange={(e) => {
                       const val = e.target.value;
@@ -620,9 +650,20 @@ export default function SubclassroomPage() {
               </div>
           </div>
 
-          <button onClick={handleGenerateMCQsOnly} className="w-full rounded-xl bg-indigo-600 py-4 font-bold text-white hover:bg-indigo-500 transition-all shadow-lg shadow-indigo-600/20">
-            START GENERATION
-          </button>
+          <div className="flex flex-col gap-2">
+            <button 
+              onClick={() => handleGenerateMCQsOnly(examType, false)} 
+              className="w-full rounded-xl bg-indigo-600 py-4 font-bold text-white hover:bg-indigo-500 transition-all shadow-lg shadow-indigo-600/20"
+            >
+              GENERATE {examType} MCQS
+            </button>
+            <button 
+              onClick={() => handleGenerateMCQsOnly(examType, true)} 
+              className="w-full rounded-xl bg-white/5 border border-white/10 py-3 text-[10px] font-black uppercase tracking-widest text-white/40 hover:text-white hover:bg-white/10 transition-all"
+            >
+              Refresh Notes & Generate
+            </button>
+          </div>
         </div>
       </Modal>
 
@@ -673,13 +714,55 @@ function MaterialRow({ material, index, onViewNotes, onGenerateMCQs, onEdit, onD
       </div>
       <div className="flex items-center gap-2">
          {parseInt(material.notesCount) > 0 && <button onClick={onViewNotes} className="px-4 py-2 rounded-lg bg-indigo-500/10 text-xs font-bold text-indigo-400 hover:bg-indigo-500/20 transition-all">VIEW NOTES</button>}
-         {parseInt(material.notesCount) > 0 && parseInt(material.mcqCount) === 0 && <button onClick={onGenerateMCQs} className="px-4 py-2 rounded-lg bg-purple-500/10 text-xs font-bold text-purple-400 hover:bg-purple-500/20 transition-all">{isGenerating ? <Loader2 className="h-3 w-3 animate-spin" /> : "MCQS"}</button>}
+         
+         <div className="flex items-center gap-1">
+           {/* SSC MCQ Logic */}
+           {parseInt(material.notesCount) > 0 && parseInt(material.sscMcqCount) === 0 ? (
+             <button 
+               onClick={() => onGenerateMCQs("SSC")} 
+               className="px-3 py-2 rounded-lg bg-green-500/10 text-[10px] font-black text-green-400 hover:bg-green-500/20 transition-all"
+               disabled={isGenerating}
+             >
+                {isGenerating ? <Loader2 className="h-3 w-3 animate-spin" /> : "SSC MCQ"}
+             </button>
+            ) : parseInt(material.sscMcqCount) > 0 && (
+              <div className="flex items-center gap-1 bg-green-600 rounded-lg overflow-hidden group/ssc">
+                <Link href={`/quiz/${material.id}?exam=SSC`} className="px-3 py-2 text-[10px] font-black text-white hover:bg-green-500 transition-all">
+                  SSC QUIZ
+                </Link>
+                <button onClick={() => onDeleteMcqs("SSC")} className="px-2 py-2 text-white/50 hover:text-white hover:bg-black/20 transition-all border-l border-white/10" title="Delete SSC MCQs">
+                  <Trash2 className="h-3 w-3" />
+                </button>
+              </div>
+           )}
+
+           {/* UPSC MCQ Logic */}
+           {parseInt(material.notesCount) > 0 && parseInt(material.upscMcqCount) === 0 ? (
+             <button 
+               onClick={() => onGenerateMCQs("UPSC")} 
+               className="px-3 py-2 rounded-lg bg-purple-500/10 text-[10px] font-black text-purple-400 hover:bg-purple-500/20 transition-all"
+               disabled={isGenerating}
+             >
+                {isGenerating ? <Loader2 className="h-3 w-3 animate-spin" /> : "UPSC MCQ"}
+             </button>
+           ) : parseInt(material.upscMcqCount) > 0 && (
+              <div className="flex items-center gap-1 bg-purple-600 rounded-lg overflow-hidden group/upsc">
+                <Link href={`/quiz/${material.id}?exam=UPSC`} className="px-3 py-2 text-[10px] font-black text-white hover:bg-purple-500 transition-all">
+                  UPSC QUIZ
+                </Link>
+                <button onClick={() => onDeleteMcqs("UPSC")} className="px-2 py-2 text-white/50 hover:text-white hover:bg-black/20 transition-all border-l border-white/10" title="Delete UPSC MCQs">
+                  <Trash2 className="h-3 w-3" />
+                </button>
+              </div>
+           )}
+         </div>
+
          {parseInt(material.mcqCount) > 0 && (
-           <div className="flex items-center gap-1 bg-indigo-600 rounded-lg overflow-hidden">
-             <Link href={`/quiz/${material.id}`} className="px-4 py-2 text-xs font-bold text-white hover:bg-indigo-500 transition-all border-r border-white/10">
-               QUIZ
-             </Link>
-             <button onClick={onDeleteMcqs} className="px-2 py-2 text-white/50 hover:text-red-300 hover:bg-red-500/20 transition-all" title="Delete Only MCQs">
+           <div className="flex items-center gap-1 bg-white/5 rounded-lg overflow-hidden border border-white/10">
+             <button onClick={() => onGenerateMCQs(material.examRelevance || 'SSC')} className="px-2 py-2 text-white/30 hover:text-white hover:bg-indigo-500/20 transition-all" title="Regenerate/Add More">
+                <Sparkles className="h-3.5 w-3.5" />
+             </button>
+             <button onClick={onDeleteMcqs} className="px-2 py-2 text-white/20 hover:text-red-300 hover:bg-red-500/20 transition-all border-l border-white/10" title="Delete Only MCQs">
                <Trash2 className="h-3.5 w-3.5" />
              </button>
            </div>

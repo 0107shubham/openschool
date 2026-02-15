@@ -319,52 +319,38 @@ ${text}
 """
 `;
 
-export const UPSC_MCQ_PROMPT = (notes: string, topicName: string = "the topic") => `
-You are a UPSC/PSC examiner.
+export const UPSC_MCQ_PROMPT = (notes: string, topicName: string = "the topic", count: number = 15) => `
+You are a UPSC Examiner. Create ${count} high-quality, concept-based MCQs on "${topicName}" using the provided notes.
 
-Create 15 high-quality MCQs on the topic: "${topicName}" based on the provided SMART NOTES.
+CORE REQUIREMENTS:
+1. FORMAT: Most questions (60%+) must be statement-based.
+   STRICT VERTICAL LAYOUT: Put each statement on a NEW LINE using \\n.
+   Example Question String: 
+   "Consider following regarding [Topic]:\\n\\n1. [Statement 1]\\n2. [Statement 2]\\n3. [Statement 3]\\n\\nWhich of the statements given above is/are correct?"
+2. DIFFICULTY: UPSC Standard (Analytical/Linkage-based).
+3. EXPLANATIONS: Deep Hinglish analysis (Hindi+English) explaining why each statement is true/false.
+4. TRAP CONCEPTS: Identify 3 common confusion points.
 
-Follow these rules strictly:
-
-1. Language:
-   - Questions must be in English only.
-   - UPSC standard difficulty (Conceptual + analytical).
-
-2. Question Pattern:
-   - Statement based (1, 2, 3 correct), Assertion-Reason, Match the following, Chronological order.
-   - Multi-dimensional linking.
-
-3. Distractors:
-   - Options must be tricky but logical. Avoid obvious elimination.
-
-4. Explanations:
-   - Provide detailed explanation for each answer IN HINGLISH.
-   - Explain why wrong options are wrong.
-
-5. Trap Concepts:
-   - After 15 MCQs, add 3 "Most Dangerous Trap Concepts".
+MINIMUM QUESTIONS: Aim for ${count} questions. If content is scarce, ensure at least 12 highly conceptual questions by linking multiple facts.
 
 JSON FORMAT:
 {
   "questions": [
     {
-      "question": "...",
-      "options": ["A", "B", "C", "D"],
+      "question": "The full question text with numbered statements...",
+      "options": ["A. ...", "B. ...", "C. ...", "D. ..."],
       "answer": "A",
-      "explanation": "Detailed Hinglish explanation + why others are wrong",
+      "explanation": "Statement 1 is... Statement 2 is... [Hinglish Analysis]",
       "level": "Hard",
       "examRelevance": "UPSC"
     }
   ],
   "trapConcepts": [
-    {
-      "topic": "Trap Concept 1",
-      "content": "..."
-    }
+    { "topic": "...", "whyItsATrap": "...", "correction": "..." }
   ]
 }
 
-SMART NOTES:
+NOTES:
 """
 ${notes}
 """

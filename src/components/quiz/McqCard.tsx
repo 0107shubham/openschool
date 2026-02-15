@@ -12,6 +12,7 @@ export interface MCQ {
   answer: string;
   explanation: string;
   pyqContext?: string;
+  examRelevance?: string;
 }
 
 interface McqCardProps {
@@ -24,14 +25,19 @@ export function McqCard({ question, onAnswer, onNext }: McqCardProps) {
   const [selected, setSelected] = useState<string | null>(null);
   const [showResult, setShowResult] = useState(false);
 
-  const handleSelect = (option: string) => {
+  const isAnswerCorrect = (opt: string, idx: number) => {
+    const letter = String.fromCharCode(65 + idx);
+    return opt === question.answer || letter === question.answer || opt.startsWith(`${question.answer}.`);
+  };
+
+  const handleSelect = (option: string, idx: number) => {
     if (showResult) return;
     setSelected(option);
     setShowResult(true);
-    onAnswer(option === question.answer);
+    onAnswer(isAnswerCorrect(option, idx));
   };
-
-  const isCorrect = selected === question.answer;
+  const isUPSC = question.examRelevance === "UPSC";
+  const isLongQuestion = question.question.length > 200;
 
   return (
     <div className="mx-auto max-w-2xl w-full">
@@ -40,19 +46,34 @@ export function McqCard({ question, onAnswer, onNext }: McqCardProps) {
         animate={{ opacity: 1, scale: 1 }}
         className="rounded-3xl border border-white/10 bg-white/[0.02] p-8 backdrop-blur-xl shadow-2xl"
       >
-        <div className="flex items-center gap-2 text-indigo-400 text-xs font-bold tracking-widest uppercase mb-4">
-          <HelpCircle className="h-4 w-4" />
-          Question Context: {question.pyqContext || "General Pattern"}
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2 text-indigo-400 text-xs font-bold tracking-widest uppercase">
+            <HelpCircle className="h-4 w-4" />
+            <span className="truncate max-w-[200px]">{question.pyqContext || "General Pattern"}</span>
+          </div>
+          {question.examRelevance && (
+            <span className={cn(
+              "px-2 py-0.5 rounded text-[10px] font-black tracking-tighter uppercase",
+              isUPSC ? "bg-purple-500/20 text-purple-400 border border-purple-500/30" : "bg-green-500/20 text-green-400 border border-green-500/30"
+            )}>
+              {question.examRelevance}
+            </span>
+          )}
         </div>
 
-        <h2 className="text-2xl font-bold leading-tight text-white mb-10">
+        <h2 className={cn(
+          "font-bold leading-tight text-white mb-10 whitespace-pre-line",
+          isUPSC 
+            ? (isLongQuestion ? "text-sm md:text-base" : "text-base md:text-lg") 
+            : (isLongQuestion ? "text-lg md:text-xl" : "text-2xl")
+        )}>
           {question.question}
         </h2>
 
         <div className="grid gap-4">
           {question.options.map((option, idx) => {
+            const isCorrectOption = isAnswerCorrect(option, idx);
             const isTarget = selected === option;
-            const isCorrectOption = option === question.answer;
             
             let stateStyle = "border-white/10 bg-white/5 hover:bg-white/10";
             if (showResult) {
@@ -65,7 +86,7 @@ export function McqCard({ question, onAnswer, onNext }: McqCardProps) {
               <button
                 key={idx}
                 disabled={showResult}
-                onClick={() => handleSelect(option)}
+                onClick={() => handleSelect(option, idx)}
                 className={cn(
                   "relative flex items-center justify-between rounded-2xl border px-6 py-5 text-left transition-all duration-300",
                   stateStyle

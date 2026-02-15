@@ -5,16 +5,17 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   try {
     const { id: materialId } = await params;
 
-    // Fetch MCQs for this material
-    // We can also fetch by classroomId if we want a cumulative quiz, 
-    // but for now let's stick to material-specific or classroom-specific logic.
-    // If the ID matches a Material ID, we get material MCQs.
-    // If it matches a Classroom ID, we get ALL MCQs for that classroom.
-    
+    const { searchParams } = new URL(req.url);
+    const examType = searchParams.get("exam"); // "SSC" or "UPSC" or null
+
+    let mcqRes;
+    const filterClause = examType ? `AND ("examRelevance" = $2 OR "examRelevance" = 'BOTH')` : '';
+    const queryParams = examType ? [materialId, examType] : [materialId];
+
     // Check if it's a material
-    let mcqRes = await query(
-      `SELECT * FROM "MCQ" WHERE "materialId" = $1 ORDER BY "createdAt" DESC`,
-      [materialId]
+    mcqRes = await query(
+      `SELECT * FROM "MCQ" WHERE "materialId" = $1 ${filterClause} ORDER BY "createdAt" DESC`,
+      queryParams
     );
 
     // If no MCQs found, check if it's a subclassroom ID
@@ -30,9 +31,9 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
         mcqRes = await query(`
            SELECT q.* FROM "MCQ" q
            JOIN "Material" m ON q."materialId" = m.id
-           WHERE m."subclassroomId" = $1
+           WHERE m."subclassroomId" = $1 ${examType ? `AND (q."examRelevance" = $2 OR q."examRelevance" = 'BOTH')` : ''}
            ORDER BY RANDOM()
-        `, [materialId]);
+        `, queryParams);
 
         return NextResponse.json({ 
           mcqs: mcqRes.rows,
@@ -56,9 +57,9 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
          mcqRes = await query(`
             SELECT q.* FROM "MCQ" q
             JOIN "Material" m ON q."materialId" = m.id
-            WHERE m."classroomId" = $1
+            WHERE m."classroomId" = $1 ${examType ? `AND (q."examRelevance" = $2 OR q."examRelevance" = 'BOTH')` : ''}
             ORDER BY RANDOM()
-         `, [materialId]);
+         `, queryParams);
 
          return NextResponse.json({ 
            mcqs: mcqRes.rows,
