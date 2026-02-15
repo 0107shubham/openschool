@@ -330,7 +330,6 @@ CORE REQUIREMENTS:
    "Consider following regarding [Topic]:\\n\\n1. [Statement 1]\\n2. [Statement 2]\\n3. [Statement 3]\\n\\nWhich of the statements given above is/are correct?"
 2. DIFFICULTY: UPSC Standard (Analytical/Linkage-based).
 3. EXPLANATIONS: Deep Hinglish analysis (Hindi+English) explaining why each statement is true/false.
-4. TRAP CONCEPTS: Identify 3 common confusion points.
 
 MINIMUM QUESTIONS: Aim for ${count} questions. If content is scarce, ensure at least 12 highly conceptual questions by linking multiple facts.
 
@@ -345,9 +344,6 @@ JSON FORMAT:
       "level": "Hard",
       "examRelevance": "UPSC"
     }
-  ],
-  "trapConcepts": [
-    { "topic": "...", "whyItsATrap": "...", "correction": "..." }
   ]
 }
 

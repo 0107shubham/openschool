@@ -218,21 +218,6 @@ export async function POST(req: Request) {
       const mcqs = Array.isArray(mcqOutput) ? mcqOutput : (mcqOutput.questions || []);
       const trapConcepts = !Array.isArray(mcqOutput) ? (mcqOutput.trapConcepts || []) : [];
 
-      // Save Trap Concepts as special notes
-      if (trapConcepts.length > 0) {
-        for (const trap of trapConcepts) {
-          const noteId = crypto.randomUUID();
-          const now = new Date().toISOString();
-          const trapContent = `WHY IT'S A TRAP: ${trap.whyItsATrap}\n\nCONCEPTUAL TRUTH: ${trap.correction}`;
-          
-          await query(
-            `INSERT INTO "SmartNote" (id, "materialId", topic, subtopic, content, "examRelevance", importance, "memoryTechnique", "createdAt", "updatedAt")
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-            [noteId, materialId, trap.topic || trap.concept || "Exam Trap", "UPSC Exam Trap!", trapContent, "UPSC", 5, JSON.stringify({ type: "warning" }), now, now]
-          );
-        }
-      }
-
       // Save MCQs to database
       for (const mcq of mcqs) {
         if (!mcq.question || !mcq.options || !Array.isArray(mcq.options) || !mcq.answer) {
